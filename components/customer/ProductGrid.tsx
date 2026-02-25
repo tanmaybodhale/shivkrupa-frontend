@@ -27,6 +27,9 @@ export default function ProductGrid() {
       }
     };
     fetchProducts();
+
+    const interval = setInterval(fetchProducts, 3000);
+    return () => clearInterval(interval);
   }, []);
 
   const filtered = useMemo(() => {

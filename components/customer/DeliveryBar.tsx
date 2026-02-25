@@ -2,6 +2,7 @@
 
 import { useApp } from '@/context/AppContext';
 import { FREE_DELIVERY_THRESHOLD } from '@/lib/data';
+import { Truck, Sparkles } from 'lucide-react';
 
 export default function DeliveryBar() {
   const { cartSubtotal } = useApp();
@@ -12,33 +13,58 @@ export default function DeliveryBar() {
 
   return (
     <div
-      className="flex items-center gap-3 rounded-xl px-5 py-3 mb-6 text-sm font-semibold"
-      style={{
-        background: 'linear-gradient(135deg, #e8f5e9, #c8e6c9)',
-        border: '1px solid #a5d6a7',
-        color: 'var(--green)',
-      }}
+      className={`relative overflow-hidden flex items-center gap-4 rounded-2xl px-5 py-4 border shadow-sm transition-colors duration-500 ${
+        unlocked 
+          ? 'bg-emerald-50 border-emerald-200 shadow-emerald-900/5' 
+          : 'bg-orange-50 border-orange-200 shadow-orange-900/5'
+      }`}
     >
-      <span className="text-xl">🚚</span>
-      <span
-        dangerouslySetInnerHTML={{
-          __html: unlocked
-            ? '🎉 You\'ve unlocked <strong>FREE Delivery!</strong>'
-            : `Add <strong>₹${remaining}</strong> more to unlock 🚚 <strong>FREE Delivery!</strong>`,
-        }}
-      />
-      <div
-        className="flex-1 h-1.5 rounded-full overflow-hidden ml-2 hidden sm:block"
-        style={{ background: 'rgba(46,125,50,.2)' }}
+      {/* Icon Container */}
+      <div 
+        className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-colors duration-500 ${
+          unlocked 
+            ? 'bg-emerald-100 text-emerald-600' 
+            : 'bg-gradient-to-tr from-orange-400 to-yellow-400 text-white shadow-inner shadow-orange-200'
+        }`}
       >
-        <div
-          className="h-full rounded-full delivery-fill"
-          style={{
-            width: `${pct}%`,
-            background: 'linear-gradient(to right, #4caf50, #2e7d32)',
-          }}
-        />
+        {unlocked ? <Sparkles size={20} className="animate-pulse" /> : <Truck size={20} />}
       </div>
+
+      {/* Text & Progress Container */}
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm sm:text-[15px] font-black tracking-tight truncate ${
+          unlocked ? 'text-emerald-800' : 'text-amber-950'
+        }`}>
+          {unlocked ? (
+            '🎉 YAY! Free Delivery Unlocked!'
+          ) : (
+            <>
+              Add <span className="text-orange-600">₹{remaining}</span> more to unlock Free Delivery
+            </>
+          )}
+        </p>
+        
+        {/* Progress Bar */}
+        <div 
+          className={`mt-2.5 h-1.5 w-full rounded-full overflow-hidden transition-colors duration-500 ${
+            unlocked ? 'bg-emerald-200/50' : 'bg-orange-200/50'
+          }`}
+        >
+          <div
+            className={`h-full rounded-full transition-all duration-700 ease-out ${
+              unlocked 
+                ? 'bg-gradient-to-r from-emerald-400 to-green-500' 
+                : 'bg-gradient-to-r from-orange-500 to-yellow-400'
+            }`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Decorative background glow for unlocked state */}
+      {unlocked && (
+        <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-emerald-400/20 blur-2xl rounded-full pointer-events-none" />
+      )}
     </div>
   );
 }

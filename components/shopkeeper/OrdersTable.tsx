@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Order } from '@/lib/types';
 import OrderDetailModal from './OrderDetailModal';
+import { Eye, PackageOpen, Activity } from 'lucide-react';
 
 export default function OrdersTable() {
   const { orders } = useApp();
@@ -11,114 +12,145 @@ export default function OrdersTable() {
 
   const sorted = [...orders].reverse();
 
-  const statusClass = (s: Order['status']) =>
-    s === 'pending' ? 'status-pending' : s === 'confirmed' ? 'status-confirmed' : 'status-delivered';
+  // Modernized status badge generator using Tailwind
+  const getStatusStyle = (status: Order['status']) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-amber-50 text-amber-700 border-amber-200';
+      case 'confirmed':
+        return 'bg-blue-50 text-blue-700 border-blue-200';
+      case 'delivered':
+        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      case 'cancelled':
+        return 'bg-red-50 text-red-700 border-red-200';
+      default:
+        return 'bg-gray-50 text-gray-700 border-gray-200';
+    }
+  };
 
   return (
     <>
-      <div
-        className="rounded-2xl overflow-hidden"
-        style={{ border: '1px solid #e0e0e0', boxShadow: '0 4px 24px rgba(0,0,0,.08)' }}
-      >
-        {/* Section header */}
-        <div
-          className="flex items-center justify-between px-6 py-5"
-          style={{ background: 'linear-gradient(135deg, #1a1208, #3a2008)' }}
-        >
-          <h3 className="font-display text-xl" style={{ color: 'var(--gold-light)' }}>
-            Customer Orders &amp; Requests
-          </h3>
-          <span
-            className="flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full"
-            style={{ background: 'rgba(76,175,80,.2)', border: '1px solid #4caf50', color: '#4caf50' }}
-          >
-            <span className="w-2 h-2 rounded-full bg-green-500 pulse-dot" />
-            Live
-          </span>
+      <div className="bg-white rounded-[2rem] shadow-sm shadow-orange-900/5 border border-orange-100/50 overflow-hidden">
+        
+        {/* Section header - Now with the vibrant orange + yellow gradient! */}
+        <div className="p-5 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gradient-to-r from-orange-500 to-yellow-500 border-b border-orange-200/50">
+          <div>
+            <h3 className="font-black text-xl text-white drop-shadow-sm">Live Orders</h3>
+            <p className="text-sm font-medium text-orange-50 mt-0.5">
+              Monitor and manage incoming customer requests
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl shadow-sm border border-white/50">
+            <Activity size={16} className="text-emerald-500" />
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
+            <span className="text-xs font-black uppercase tracking-wider text-emerald-600">
+              Live Sync
+            </span>
+          </div>
         </div>
 
         {orders.length === 0 ? (
-          <div className="text-center py-16" style={{ color: 'var(--muted)' }}>
-            <div className="text-5xl mb-3">📭</div>
-            <h4 className="font-bold text-base" style={{ color: 'var(--dark)' }}>No orders yet</h4>
-            <p className="text-sm mt-1">Orders will appear here when customers checkout.</p>
+          <div className="p-12 text-center flex flex-col items-center justify-center">
+            <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mb-4">
+              <PackageOpen size={32} className="text-orange-300" />
+            </div>
+            <h4 className="text-lg font-bold text-gray-900">No orders yet</h4>
+            <p className="text-gray-500 text-sm mt-1 max-w-sm">
+              Incoming customer orders will automatically appear here once they checkout.
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
+            <table className="w-full text-left border-collapse min-w-[1000px]">
               <thead>
-                <tr style={{ background: '#f5f5f5' }}>
-                  {['Order ID','Customer','Items','Amount','Delivery','Time','Status','Action'].map(h => (
-                    <th
-                      key={h}
-                      className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider"
-                      style={{ color: 'var(--muted)' }}
-                    >
-                      {h}
-                    </th>
-                  ))}
+                <tr className="bg-gray-50/80 border-b border-gray-100">
+                  <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Order ID</th>
+                  <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Customer</th>
+                  <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Items</th>
+                  <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Amount</th>
+                  <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Delivery</th>
+                  <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Time</th>
+                  <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Status</th>
+                  <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody>
-                {sorted.map((order, i) => (
+              <tbody className="divide-y divide-gray-100">
+                {sorted.map((order) => (
                   <tr
                     key={order.orderId}
-                    className="transition-colors cursor-pointer"
-                    style={{ borderBottom: i < sorted.length - 1 ? '1px solid #f0f0f0' : 'none' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--gold-pale)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = '')}
+                    onClick={() => setSelectedOrder(order)}
+                    className="hover:bg-orange-50/30 transition-colors cursor-pointer group"
                   >
-                    <td className="px-4 py-3">
-                      <span
-                        className="text-xs font-bold px-2 py-1 rounded-md"
-                        style={{ background: 'var(--gold-pale)', color: 'var(--brown)', border: '1px solid rgba(201,148,26,.2)', fontFamily: 'monospace' }}
-                      >
+                    {/* Order ID */}
+                    <td className="px-6 py-4">
+                      <span className="text-[11px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md bg-gray-100 text-gray-600 border border-gray-200">
                         {order.orderId}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="font-bold text-sm" style={{ color: 'var(--dark)' }}>{order.name}</div>
-                      <div className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>📞 {order.phone}</div>
+                    
+                    {/* Customer */}
+                    <td className="px-6 py-4">
+                      <div className="font-bold text-sm text-gray-900">{order.name}</div>
+                      <div className="text-xs font-semibold text-gray-400 mt-0.5 tracking-wide">
+                        {order.phone}
+                      </div>
                     </td>
-                    <td className="px-4 py-3 text-sm">
-                      {order.items.length} item{order.items.length > 1 ? 's' : ''}
+                    
+                    {/* Items */}
+                    <td className="px-6 py-4">
+                      <span className="text-xs font-bold bg-gray-100 px-2 py-1 rounded-lg text-gray-600">
+                        {order.items.length} item{order.items.length > 1 ? 's' : ''}
+                      </span>
                     </td>
-                    <td className="px-4 py-3 text-sm font-bold" style={{ color: 'var(--dark)' }}>
-                      ₹{order.total}
+                    
+                    {/* Amount */}
+                    <td className="px-6 py-4">
+                      <span className="text-sm font-black text-gray-900">
+                        ₹{order.total}
+                      </span>
                     </td>
-                    <td className="px-4 py-3 text-sm">
-                      {order.delivery === 0
-                        ? <span style={{ color: 'var(--green)', fontWeight: 700 }}>FREE</span>
-                        : `₹${order.delivery}`}
+                    
+                    {/* Delivery */}
+                    <td className="px-6 py-4">
+                      {order.delivery === 0 ? (
+                        <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">
+                          FREE
+                        </span>
+                      ) : (
+                        <span className="text-xs font-bold text-gray-600">
+                          ₹{order.delivery}
+                        </span>
+                      )}
                     </td>
-                    <td className="px-4 py-3 text-xs" style={{ color: 'var(--muted)' }}>
-                      {order.timeStr}
+                    
+                    {/* Time */}
+                    <td className="px-6 py-4">
+                      <span className="text-[11px] font-bold text-gray-400">
+                        {order.timeStr}
+                      </span>
                     </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`text-xs font-bold uppercase tracking-wide px-3 py-1 rounded-full ${statusClass(order.status)}`}
-                      >
+                    
+                    {/* Status */}
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${getStatusStyle(order.status)}`}>
                         {order.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    
+                    {/* Action */}
+                    <td className="px-6 py-4 text-right">
                       <button
-                        onClick={() => setSelectedOrder(order)}
-                        className="text-xs font-bold px-3 py-2 rounded-lg transition-all"
-                        style={{
-                          background: 'var(--gold-pale)',
-                          color: 'var(--brown)',
-                          border: '1px solid rgba(201,148,26,.3)',
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevents double-firing
+                          setSelectedOrder(order);
                         }}
-                        onMouseEnter={e => {
-                          (e.currentTarget as HTMLButtonElement).style.background = 'var(--gold)';
-                          (e.currentTarget as HTMLButtonElement).style.color = 'var(--dark)';
-                        }}
-                        onMouseLeave={e => {
-                          (e.currentTarget as HTMLButtonElement).style.background = 'var(--gold-pale)';
-                          (e.currentTarget as HTMLButtonElement).style.color = 'var(--brown)';
-                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-orange-600 bg-orange-50 border border-orange-200 group-hover:bg-orange-500 group-hover:text-white transition-all shadow-sm"
                       >
+                        <Eye size={14} strokeWidth={2.5} />
                         View
                       </button>
                     </td>
@@ -134,7 +166,7 @@ export default function OrdersTable() {
         <OrderDetailModal
           order={selectedOrder}
           onClose={() => setSelectedOrder(null)}
-          onUpdated={updated => setSelectedOrder(updated)}
+          onUpdated={(updated) => setSelectedOrder(updated)}
         />
       )}
     </>

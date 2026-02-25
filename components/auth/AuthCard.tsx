@@ -4,9 +4,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 
-type Tab  = 'login'  | 'signup';
+type Tab = 'login' | 'signup';
 
-export default function   AuthCard() {
+export default function AuthCard() {
   const { login, signup, showToast } = useApp();
   const router = useRouter();
 
@@ -14,14 +14,14 @@ export default function   AuthCard() {
   const [loading, setLoading] = useState(false);
 
   // Login fields
-  const [loginId,   setLoginId]   = useState('');
+  const [loginId, setLoginId] = useState('');
   const [loginPass, setLoginPass] = useState('');
 
   // Signup fields
-  const [signupName,  setSignupName]  = useState('');
+  const [signupName, setSignupName] = useState('');
   const [signupPhone, setSignupPhone] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
-  const [signupPass,  setSignupPass]  = useState('');
+  const [signupPass, setSignupPass] = useState('');
 
   const handleLogin = async () => {
     if (!loginId.trim() || !loginPass.trim()) {
@@ -60,29 +60,31 @@ export default function   AuthCard() {
   };
 
   return (
-    <div
-      className="w-full rounded-3xl p-9"
-      style={{
-        background: 'rgba(255,255,255,.05)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(201,148,26,.25)',
-        boxShadow: '0 24px 80px rgba(0,0,0,.4)',
-      }}
-    >
+    <div className="w-full max-w-md mx-auto rounded-[2rem] p-8 sm:p-10 bg-white/95 backdrop-blur-xl border border-orange-100 shadow-2xl shadow-orange-900/10 relative overflow-hidden">
+      {/* Decorative top gradient line */}
+      <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-yellow-400 via-orange-500 to-amber-600" />
+
+      {/* Header text */}
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-black text-amber-950">
+          Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-500">Shivkrupa</span>
+        </h2>
+        <p className="text-sm font-medium text-amber-900/60 mt-1">
+          {tab === 'login' ? 'Sign in to your account' : 'Join our neighbourhood store'}
+        </p>
+      </div>
+
       {/* Tab bar */}
-      <div
-        className="flex rounded-xl p-1 mb-7"
-        style={{ background: 'rgba(0,0,0,.3)' }}
-      >
-        {(['login','signup'] as Tab[]).map(t => (
+      <div className="flex rounded-xl p-1.5 mb-8 bg-orange-50 border border-orange-100">
+        {(['login', 'signup'] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => !loading && setTab(t)}
-            className="flex-1 py-2.5 rounded-[9px] text-sm font-bold transition-all capitalize"
-            style={tab === t
-              ? { background: 'var(--gold)', color: 'var(--dark)' }
-              : { color: 'rgba(255,255,255,.5)' }
-            }
+            className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all capitalize ${
+              tab === t
+                ? 'bg-white text-orange-600 shadow-sm border border-orange-100/50'
+                : 'text-amber-900/50 hover:text-orange-500 hover:bg-orange-100/30'
+            }`}
           >
             {t === 'login' ? 'Sign In' : 'Sign Up'}
           </button>
@@ -91,24 +93,32 @@ export default function   AuthCard() {
 
       {/* LOGIN */}
       {tab === 'login' && (
-        <div className="fade-up">
-          <Field label="Phone / Email" value={loginId}   onChange={setLoginId}   placeholder="Enter phone or email" />
-          <Field label="Password"      value={loginPass} onChange={setLoginPass} placeholder="Enter password" type="password" />
+        <div className="fade-up animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <Field label="Phone / Email" value={loginId} onChange={setLoginId} placeholder="Enter phone or email" />
+          <Field label="Password" value={loginPass} onChange={setLoginPass} placeholder="Enter password" type="password" />
+          
           <button
             onClick={handleLogin}
             disabled={loading}
-            className="btn-gold w-full py-3.5 mt-2 text-base disabled:opacity-50"
+            className="w-full py-3.5 mt-4 text-base font-bold text-white rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 shadow-lg shadow-orange-200 transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:hover:translate-y-0 flex justify-center items-center"
           >
-            {loading ? 'Signing in...' : 'Sign In →'}
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Signing in...
+              </span>
+            ) : (
+              'Sign In →'
+            )}
           </button>
-          <p className="text-center mt-4 text-sm" style={{ color: 'rgba(255,255,255,.4)' }}>
+          
+          <p className="text-center mt-6 text-sm text-amber-900/60 font-medium">
             New here?{' '}
             <span
-              className="font-semibold cursor-pointer"
-              style={{ color: 'var(--gold-light)' }}
+              className="font-bold text-orange-500 hover:text-orange-600 cursor-pointer transition-colors"
               onClick={() => !loading && setTab('signup')}
             >
-              Create account
+              Create an account
             </span>
           </p>
         </div>
@@ -116,23 +126,31 @@ export default function   AuthCard() {
 
       {/* SIGNUP */}
       {tab === 'signup' && (
-        <div className="fade-up">
-          <Field label="Full Name"        value={signupName}  onChange={setSignupName}  placeholder="Your full name" />
-          <Field label="Phone Number"     value={signupPhone} onChange={setSignupPhone} placeholder="10-digit phone number" type="tel" />
+        <div className="fade-up animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <Field label="Full Name" value={signupName} onChange={setSignupName} placeholder="Your full name" />
+          <Field label="Phone Number" value={signupPhone} onChange={setSignupPhone} placeholder="10-digit phone number" type="tel" />
           <Field label="Email (optional)" value={signupEmail} onChange={setSignupEmail} placeholder="your@email.com" type="email" />
-          <Field label="Password"         value={signupPass}  onChange={setSignupPass}  placeholder="Create a password" type="password" />
+          <Field label="Password" value={signupPass} onChange={setSignupPass} placeholder="Create a password" type="password" />
+          
           <button
             onClick={handleSignup}
             disabled={loading}
-            className="btn-gold w-full py-3.5 mt-2 text-base disabled:opacity-50"
+            className="w-full py-3.5 mt-4 text-base font-bold text-white rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 shadow-lg shadow-orange-200 transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:hover:translate-y-0 flex justify-center items-center"
           >
-            {loading ? 'Creating account...' : 'Create Account →'}
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Creating...
+              </span>
+            ) : (
+              'Create Account →'
+            )}
           </button>
-          <p className="text-center mt-4 text-sm" style={{ color: 'rgba(255,255,255,.4)' }}>
+          
+          <p className="text-center mt-6 text-sm text-amber-900/60 font-medium">
             Already have an account?{' '}
             <span
-              className="font-semibold cursor-pointer"
-              style={{ color: 'var(--gold-light)' }}
+              className="font-bold text-orange-500 hover:text-orange-600 cursor-pointer transition-colors"
               onClick={() => !loading && setTab('login')}
             >
               Sign In
@@ -142,10 +160,14 @@ export default function   AuthCard() {
       )}
 
       {/* Admin link */}
-      <p className="text-center text-xs mt-3" style={{ color: 'rgba(255,255,255,.3)' }}>
-        Admin?{' '}
-        <a href="/admin/login" className="underline hover:text-yellow-400">Click here to login</a>
-      </p>
+      <div className="mt-8 pt-4 border-t border-orange-50 text-center">
+        <p className="text-xs font-medium text-amber-900/40">
+          Admin?{' '}
+          <a href="/admin/login" className="font-bold text-amber-900/60 hover:text-orange-500 transition-colors">
+            Click here to login
+          </a>
+        </p>
+      </div>
     </div>
   );
 }
@@ -158,11 +180,8 @@ function Field({
   placeholder: string; type?: string;
 }) {
   return (
-    <div className="mb-4">
-      <label
-        className="block mb-1.5 text-xs font-bold uppercase tracking-widest"
-        style={{ color: 'rgba(255,255,255,.55)' }}
-      >
+    <div className="mb-4 text-left">
+      <label className="block mb-1.5 text-[11px] font-black uppercase tracking-[0.15em] text-amber-950/60">
         {label}
       </label>
       <input
@@ -170,8 +189,13 @@ function Field({
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="auth-input"
-        onKeyDown={e => { if (e.key === 'Enter') (e.currentTarget.closest('div.fade-up')?.querySelector('button') as HTMLButtonElement)?.click(); }}
+        className="w-full px-4 py-3 rounded-xl border border-orange-200 bg-orange-50/30 text-amber-950 placeholder-amber-900/30 font-medium focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 focus:bg-white transition-all"
+        onKeyDown={e => { 
+          if (e.key === 'Enter') {
+            const button = e.currentTarget.closest('.fade-up')?.querySelector('button') as HTMLButtonElement;
+            if (button) button.click();
+          }
+        }}
       />
     </div>
   );

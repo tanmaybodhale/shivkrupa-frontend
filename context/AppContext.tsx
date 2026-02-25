@@ -221,10 +221,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [currentUser]);
 
-  const updateOrderStatus = (orderId: string, status: Order['status']) => {
-    const updated = orders.map(o => o.orderId === orderId ? { ...o, status } : o);
-    setOrders(updated);
-    ls.set('sk_orders', updated);
+  const updateOrderStatus = async (orderId: string, status: Order['status']) => {
+    try {
+      const res = await fetch(`${API_URL}/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const updated = orders.map(o => o.orderId === orderId ? { ...o, status } : o);
+        setOrders(updated);
+        ls.set('sk_orders', updated);
+      }
+    } catch (error) {
+      console.error('Failed to update order status:', error);
+    }
   };
 
   const refreshOrders = useCallback(() => setOrders(ls.get<Order[]>('sk_orders', [])), []);

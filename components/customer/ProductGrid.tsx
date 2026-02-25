@@ -1,18 +1,41 @@
 'use client';
 
-import { useMemo } from 'react';
-import { PRODUCTS, CATEGORIES } from '@/lib/data';
+import { useState, useEffect, useMemo } from 'react';
 import { useProductFilter } from './useProductFilter';
 import ProductCard from './ProductCard';
+import { Product } from '@/lib/types';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export default function ProductGrid() {
   const { activeCategory, sort, priceRange, search } = useProductFilter();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await fetch(`${API_URL}/catalog`);
+        const data = await res.json();
+        if (data.success) {
+          setProducts(data.products);
+        }
+      } catch (error) {
+        console.error('Failed to fetch products:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProducts();
+  }, []);
 
   const filtered = useMemo(() => {
-    let list = PRODUCTS.filter(p => {
-      const matchCat    = activeCategory === 'all' || p.cat === activeCategory;
+    let list = products.filter(p => {
+      const productCategory = (p.category || p.cat || '').toLowerCase();
+      const activeCat = activeCategory.toLowerCase();
+      const matchCat    = activeCategory === 'all' || productCategory === activeCat;
       const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
-                          p.cat.includes(search.toLowerCase());
+                          productCategory.includes(search.toLowerCase());
       let matchPrice = true;
       if (priceRange === '0-50')    matchPrice = p.price < 50;
       if (priceRange === '50-100')  matchPrice = p.price >= 50  && p.price <= 100;
@@ -27,9 +50,20 @@ export default function ProductGrid() {
     if (sort === 'name')       list = [...list].sort((a, b) => a.name.localeCompare(b.name));
 
     return list;
-  }, [activeCategory, sort, priceRange, search]);
+  }, [products, activeCategory, sort, priceRange, search]);
 
-  const catLabel = CATEGORIES.find(c => c.id === activeCategory)?.label || 'All Items';
+  const catLabel = activeCategory === 'all' ? 'All Items' : activeCategory.charAt(0).toUpperCase() + activeCategory.slice(1);
+
+  if (loading) {
+    return (
+      <section>
+        <div className="text-center py-20">
+          <div className="text-4xl mb-4">📦</div>
+          <p style={{ color: 'var(--muted)' }}>Loading products...</p>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section>
@@ -61,7 +95,7 @@ export default function ProductGrid() {
           className="grid gap-5"
           style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))' }}
         >
-          {filtered.map(p => <ProductCard key={p.id} product={p} />)}
+          {filtered.map(p => <ProductCard key={p._id || p.id} product={p} />)}
         </div>
       )}
     </section>

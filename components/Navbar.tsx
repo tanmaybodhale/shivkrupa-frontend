@@ -3,14 +3,14 @@
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 
-export default function Navbar() {
+export default function Navbar({ showAuthButtons = false }: { showAuthButtons?: boolean }) {
   const { currentUser, logout, cart, setCartOpen } = useApp();
   const router = useRouter();
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
 
   const handleLogout = () => {
     logout();
-    router.replace('/');
+    router.replace('/customer');
   };
 
   return (
@@ -23,7 +23,7 @@ export default function Navbar() {
       }}
     >
       {/* Brand */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 cursor-pointer" onClick={() => router.push('/customer')}>
         <span className="text-3xl">✿</span>
         <div>
           <h2
@@ -50,6 +50,19 @@ export default function Navbar() {
           📞 9975636622
         </span>
 
+        {/* Login/Signup buttons for unauthenticated users */}
+        {!currentUser && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.push('/login')}
+              className="px-3 py-1.5 rounded-lg text-sm font-semibold transition-all"
+              style={{ background: 'rgba(255,255,255,.1)', color: 'rgba(255,255,255,.7)' }}
+            >
+              Login
+            </button>
+          </div>
+        )}
+
         {/* User avatar + name */}
         {currentUser && (
           <div className="flex items-center gap-2" style={{ color: 'rgba(255,255,255,.7)' }}>
@@ -63,26 +76,39 @@ export default function Navbar() {
           </div>
         )}
 
-        {/* Cart button (customer only) */}
-        {currentUser?.role === 'customer' && (
+        {/* Cart button - visible for everyone */}
+        <button
+          onClick={() => setCartOpen(true)}
+          className="relative rounded-xl px-3 py-2 text-lg transition-colors"
+          style={{
+            background: 'rgba(201,148,26,.15)',
+            border: '1px solid rgba(201,148,26,.4)',
+            color: 'var(--gold-light)',
+          }}
+        >
+          🛒
+          {cartCount > 0 && (
+            <span
+              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full text-white text-xs font-bold flex items-center justify-center"
+              style={{ background: '#e53935' }}
+            >
+              {cartCount}
+            </span>
+          )}
+        </button>
+
+        {/* Admin Dashboard Link */}
+        {currentUser?.role === 'shopkeeper' && (
           <button
-            onClick={() => setCartOpen(true)}
-            className="relative rounded-xl px-3 py-2 text-lg transition-colors"
+            onClick={() => router.push('/admin')}
+            className="text-sm font-semibold rounded-xl px-3 py-2 transition-all"
             style={{
               background: 'rgba(201,148,26,.15)',
               border: '1px solid rgba(201,148,26,.4)',
               color: 'var(--gold-light)',
             }}
           >
-            🛒
-            {cartCount > 0 && (
-              <span
-                className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full text-white text-xs font-bold flex items-center justify-center"
-                style={{ background: '#e53935' }}
-              >
-                {cartCount}
-              </span>
-            )}
+            🛠️ Admin
           </button>
         )}
 

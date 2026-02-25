@@ -35,16 +35,19 @@ interface AppState {
   logout: () => void;
 
   addToCart: (product: Product) => void;
-  changeQty: (productId: number, delta: number) => void;
+  changeQty: (productId: string, delta: number) => void;
   clearCart: () => void;
   cartSubtotal: () => number;
   deliveryCharge: () => number;
   cartTotal: () => number;
   setCartOpen: (open: boolean) => void;
 
-  placeOrder: () => Order | null;
+  placeOrder: (paymentMethod?: string) => Promise<Order | null>;
   updateOrderStatus: (orderId: string, status: Order['status']) => void;
   refreshOrders: () => void;
+  fetchOrders: () => Promise<void>;
+  setOrders: (orders: Order[]) => void;
+  setCurrentUser: (user: User | null) => void;
 
   showToast: (msg: string) => void;
 }
@@ -116,17 +119,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   // ── Cart ─────────────────────────────────────────────────
+  const getProductId = (product: Product): string => {
+    if (product._id) return product._id;
+    if (product.id) return String(product.id);
+    return '';
+  };
+
   const addToCart = (product: Product) => {
+    const prodId = getProductId(product);
     setCart(prev => {
-      const existing = prev.find(c => c.id === product.id);
-      if (existing) return prev.map(c => c.id === product.id ? { ...c, qty: c.qty + 1 } : c);
+      const existing = prev.find(c => getProductId(c) === prodId);
+      if (existing) return prev.map(c => getProductId(c) === prodId ? { ...c, qty: c.qty + 1 } : c);
       return [...prev, { ...product, qty: 1 }];
     });
   };
 
-  const changeQty = (productId: number, delta: number) => {
+  const changeQty = (productId: string, delta: number) => {
     setCart(prev => {
-      const updated = prev.map(c => c.id === productId ? { ...c, qty: c.qty + delta } : c);
+      const updated = prev.map(c => {
+        const cId = getProductId(c);
+        if (cId === productId) {
+          return { ...c, qty: c.qty + delta };
+        }
+        return c;
+      });
       return updated.filter(c => c.qty > 0);
     });
   };
@@ -143,31 +159,67 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const cartTotal = () => cartSubtotal() + deliveryCharge();
 
   // ── Orders ────────────────────────────────────────────────
-  const placeOrder = (): Order | null => {
+  const placeOrder = async (paymentMethod: string = 'cod'): Promise<Order | null> => {
     if (!currentUser || cart.length === 0) return null;
     const subtotal = cartSubtotal();
     const delivery = deliveryCharge();
     const total = subtotal + delivery;
-    const orderId = 'SKE' + Date.now().toString().slice(-7);
-    const now = new Date();
-    const order: Order = {
-      orderId,
-      uid: currentUser.uid,
-      name: currentUser.name,
-      phone: currentUser.phone || '—',
-      items: [...cart],
-      subtotal,
-      delivery,
-      total,
-      time: now.toISOString(),
-      timeStr: now.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }),
-      status: 'pending',
-    };
-    const updated = [...orders, order];
-    setOrders(updated);
-    ls.set('sk_orders', updated);
-    return order;
+
+    const items = cart.map(item => ({
+      productId: item._id || String(item.id || ''),
+      name: item.name,
+      price: item.price,
+      qty: item.qty,
+      image: item.image,
+    }));
+
+    try {
+      const res = await fetch(`${API_URL}/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid: currentUser.uid,
+          name: currentUser.name,
+          phone: currentUser.phone,
+          items,
+          subtotal,
+          delivery,
+          total,
+          paymentMethod,
+        }),
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        const localOrder: Order = {
+          ...data.order,
+          items: cart,
+        };
+        const updated = [...orders, localOrder];
+        setOrders(updated);
+        ls.set('sk_orders', updated);
+        return localOrder;
+      }
+      return null;
+    } catch (error) {
+      console.error('Failed to place order:', error);
+      return null;
+    }
   };
+
+  const fetchOrders = useCallback(async () => {
+    if (!currentUser) return;
+    try {
+      const res = await fetch(`${API_URL}/orders/${currentUser.uid}`);
+      const data = await res.json();
+      if (data.success) {
+        setOrders(data.orders);
+        ls.set('sk_orders', data.orders);
+      }
+    } catch (error) {
+      console.error('Failed to fetch orders:', error);
+    }
+  }, [currentUser]);
 
   const updateOrderStatus = (orderId: string, status: Order['status']) => {
     const updated = orders.map(o => o.orderId === orderId ? { ...o, status } : o);
@@ -175,14 +227,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ls.set('sk_orders', updated);
   };
 
-  const refreshOrders = () => setOrders(ls.get<Order[]>('sk_orders', []));
+  const refreshOrders = useCallback(() => setOrders(ls.get<Order[]>('sk_orders', [])), []);
 
   return (
     <AppContext.Provider value={{
       currentUser, cart, orders, toast, cartOpen,
       signup, login, logout,
       addToCart, changeQty, clearCart, cartSubtotal, deliveryCharge, cartTotal, setCartOpen,
-      placeOrder, updateOrderStatus, refreshOrders,
+      placeOrder, updateOrderStatus, refreshOrders, fetchOrders, setOrders, setCurrentUser,
       showToast,
     }}>
       {children}

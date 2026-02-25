@@ -3,9 +3,9 @@ export interface User {
   name: string;
   phone: string;
   email?: string;
-  pass: string;
+  pass?: string;
   role: 'customer' | 'shopkeeper';
-  joinedAt: string;
+  joinedAt?: string;
 }
 
 export interface Category {
@@ -15,30 +15,45 @@ export interface Category {
 }
 
 export interface Product {
-  id: number;
+  _id?: string;
+  id?: number;
   name: string;
-  cat: string;
+  cat?: string;
+  category: string;
   price: number;
-  emoji: string;
-  tag: string;
-  isNew: boolean;
+  mrp: number;
+  description?: string;
+  image: string;
+  emoji?: string;
+  unit: string;
+  inStock: boolean;
+  isNew?: boolean;
+  tag?: string;
+  quantity?: number | null;
 }
 
 export interface CartItem extends Product {
   qty: number;
 }
 
-export type OrderStatus = 'pending' | 'confirmed' | 'delivered';
+export type OrderStatus = 'pending' | 'confirmed' | 'delivered' | 'cancelled';
 
 export interface Order {
   orderId: string;
   uid: string;
   name: string;
   phone: string;
-  items: CartItem[];
+  items: {
+    productId?: string;
+    name: string;
+    price: number;
+    qty: number;
+    image?: string;
+  }[];
   subtotal: number;
   delivery: number;
   total: number;
+  paymentMethod?: string;
   time: string;
   timeStr: string;
   status: OrderStatus;

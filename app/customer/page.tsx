@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import Navbar from '@/components/Navbar';
 import HeroBanner from '@/components/customer/HeroBanner';
@@ -14,15 +14,24 @@ import BillModal from '@/components/shared/BillModal';
 import Toast from '@/components/shared/Toast';
 
 export default function CustomerPage() {
-  const { currentUser } = useApp();
-  const router = useRouter();
+  const { currentUser, setCartOpen } = useApp();
+  const searchParams = useSearchParams();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    if (!currentUser) router.replace('/');
-    else if (currentUser.role === 'shopkeeper') router.replace('/shopkeeper');
-  }, [currentUser, router]);
+    setMounted(true);
+  }, []);
 
-  if (!currentUser || currentUser.role !== 'customer') return null;
+  useEffect(() => {
+    if (mounted && searchParams.get('checkout') === 'true') {
+      setCartOpen(true);
+      const url = new URL(window.location.href);
+      url.searchParams.delete('checkout');
+      window.history.replaceState({}, '', url);
+    }
+  }, [mounted, searchParams, setCartOpen]);
+
+  if (!mounted) return null;
 
   return (
     <>

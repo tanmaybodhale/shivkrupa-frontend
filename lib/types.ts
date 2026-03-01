@@ -6,6 +6,17 @@ export interface User {
   pass?: string;
   role: 'customer' | 'shopkeeper';
   joinedAt?: string;
+  address?: {
+    street: string;
+    area: string;
+    city: string;
+    state: string;
+    pincode: string;
+    location?: {
+      lat: number;
+      lng: number;
+    };
+  };
 }
 
 export interface Category {
@@ -57,4 +68,15 @@ export interface Order {
   time: string;
   timeStr: string;
   status: OrderStatus;
+  deliveryAddress?: {
+    street: string;
+    area: string;
+    city: string;
+    state: string;
+    pincode: string;
+    location?: {
+      lat: number;
+      lng: number;
+    };
+  };
 }

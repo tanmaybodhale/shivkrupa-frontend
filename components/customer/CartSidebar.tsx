@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { CATEGORIES, FREE_DELIVERY_THRESHOLD, DELIVERY_CHARGE } from '@/lib/data';
 import BillModal from '@/components/shared/BillModal';
-import { Order, Product } from '@/lib/types';
-import { X, ShoppingBag, Truck, Banknote, CreditCard, Minus, Plus } from 'lucide-react';
+import LocationPicker from './LocationPicker';
+import { Order, Product, User } from '@/lib/types';
+import { X, ShoppingBag, Truck, Banknote, CreditCard, Minus, Plus, MapPin, Navigation } from 'lucide-react';
 
 export default function CartSidebar() {
   const {
@@ -18,6 +19,16 @@ export default function CartSidebar() {
   
   const [billOrder, setBillOrder] = useState<Order | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'online'>('cod');
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const defaultAddress = {
+    street: '',
+    area: '',
+    city: '',
+    state: '',
+    pincode: '',
+    location: undefined as { lat: number; lng: number } | undefined,
+  };
+  const [deliveryAddress, setDeliveryAddress] = useState(defaultAddress);
 
   const getProductId = (product: Product): string => {
     return product._id || String(product.id || '');
@@ -41,7 +52,7 @@ export default function CartSidebar() {
       return;
     }
     
-    const order = await placeOrder(paymentMethod);
+    const order = await placeOrder(paymentMethod, deliveryAddress);
     if (order) {
       setBillOrder(order);
       clearCart();
@@ -239,6 +250,75 @@ export default function CartSidebar() {
                 <span className="text-sm font-black text-gray-900">Grand Total</span>
                 <span className="text-xl font-black text-orange-600">₹{total}</span>
               </div>
+            </div>
+
+            {/* Delivery Address */}
+            <div className="mb-4">
+              <button
+                type="button"
+                onClick={() => setShowAddressForm(!showAddressForm)}
+                className="flex items-center justify-between w-full text-left"
+              >
+                <p className="text-[10px] uppercase tracking-[0.15em] font-black text-gray-400 mb-2 flex items-center gap-2">
+                  <MapPin size={14} />
+                  Delivery Address
+                </p>
+                <span className="text-xs font-bold text-orange-500">
+                  {showAddressForm ? '− Hide' : '+ Add'}
+                </span>
+              </button>
+              
+              {showAddressForm && (
+                <div className="space-y-3 p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                  <input
+                    type="text"
+                    placeholder="Street Address"
+                    value={deliveryAddress.street}
+                    onChange={(e) => setDeliveryAddress({ ...deliveryAddress, street: e.target.value })}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-emerald-200 bg-white focus:outline-none focus:border-emerald-400"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Area / Landmark"
+                    value={deliveryAddress.area}
+                    onChange={(e) => setDeliveryAddress({ ...deliveryAddress, area: e.target.value })}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-emerald-200 bg-white focus:outline-none focus:border-emerald-400"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="City"
+                      value={deliveryAddress.city}
+                      onChange={(e) => setDeliveryAddress({ ...deliveryAddress, city: e.target.value })}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-emerald-200 bg-white focus:outline-none focus:border-emerald-400"
+                    />
+                    <input
+                      type="text"
+                      placeholder="State"
+                      value={deliveryAddress.state}
+                      onChange={(e) => setDeliveryAddress({ ...deliveryAddress, state: e.target.value })}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-emerald-200 bg-white focus:outline-none focus:border-emerald-400"
+                    />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Pincode"
+                    value={deliveryAddress.pincode}
+                    onChange={(e) => setDeliveryAddress({ ...deliveryAddress, pincode: e.target.value })}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-emerald-200 bg-white focus:outline-none focus:border-emerald-400"
+                  />
+                  
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider font-bold text-emerald-600 mb-2">
+                      📍 Pick Location
+                    </p>
+                    <LocationPicker
+                      location={deliveryAddress.location || null}
+                      onLocationChange={(loc) => setDeliveryAddress({ ...deliveryAddress, location: loc || undefined })}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Checkout Button */}

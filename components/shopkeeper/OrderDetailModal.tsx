@@ -2,7 +2,7 @@
 
 import { Order } from '@/lib/types';
 import { useApp } from '@/context/AppContext';
-import { X, User, Phone, Clock, Package, CheckCircle2, XCircle, Timer, ClipboardCheck } from 'lucide-react';
+import { X, User, Phone, Clock, Package, CheckCircle2, XCircle, Timer, ClipboardCheck, MapPin, Navigation } from 'lucide-react';
 
 interface Props {
   order: Order;
@@ -124,6 +124,42 @@ export default function OrderDetailModal({ order, onClose, onUpdated }: Props) {
             </div>
           </div>
 
+          {/* Delivery Address */}
+          {(order.deliveryAddress?.street || order.deliveryAddress?.area || order.deliveryAddress?.location) && (
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.15em] font-black text-gray-400 mb-2">
+                Delivery Address
+              </p>
+              <div className="bg-emerald-50/50 rounded-2xl p-4 border border-emerald-100/50 space-y-2">
+                {order.deliveryAddress?.street && (
+                  <div className="flex items-start gap-2">
+                    <MapPin size={14} className="text-emerald-500 shrink-0 mt-0.5" />
+                    <p className="text-sm font-medium text-gray-900">{order.deliveryAddress.street}</p>
+                  </div>
+                )}
+                {order.deliveryAddress?.area && (
+                  <p className="text-sm text-gray-600 pl-6">{order.deliveryAddress.area}</p>
+                )}
+                {(order.deliveryAddress?.city || order.deliveryAddress?.state || order.deliveryAddress?.pincode) && (
+                  <p className="text-sm text-gray-600 pl-6">
+                    {[order.deliveryAddress.city, order.deliveryAddress.state, order.deliveryAddress.pincode].filter(Boolean).join(', ')}
+                  </p>
+                )}
+                {order.deliveryAddress?.location && (
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${order.deliveryAddress.location.lat},${order.deliveryAddress.location.lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-xs font-bold text-emerald-600 hover:text-emerald-700 mt-2 pl-6"
+                  >
+                    <Navigation size={14} />
+                    Get Directions
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Items Ordered */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -142,7 +178,7 @@ export default function OrderDetailModal({ order, onClose, onUpdated }: Props) {
                       {item.image?.startsWith('http') ? (
                         <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                       ) : (
-                        <span className="text-2xl">{item.emoji || '📦'}</span>
+                        <span className="text-2xl">{(item as any).emoji || '📦'}</span>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">

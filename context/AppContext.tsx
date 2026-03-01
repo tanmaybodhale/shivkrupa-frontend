@@ -30,9 +30,10 @@ interface AppState {
   toast: { msg: string; visible: boolean };
   cartOpen: boolean;
 
-  signup: (name: string, phone: string, email: string, pass: string) => Promise<string | null>;
+  signup: (name: string, phone: string, email: string, pass: string, address?: User['address']) => Promise<string | null>;
   login: (id: string, pass: string, role: 'customer' | 'shopkeeper') => Promise<string | null>;
   logout: () => void;
+  updateAddress: (address: User['address']) => Promise<void>;
 
   addToCart: (product: Product) => void;
   changeQty: (productId: string, delta: number) => void;
@@ -42,7 +43,7 @@ interface AppState {
   cartTotal: () => number;
   setCartOpen: (open: boolean) => void;
 
-  placeOrder: (paymentMethod?: string) => Promise<Order | null>;
+  placeOrder: (paymentMethod?: string, deliveryAddress?: User['address']) => Promise<Order | null>;
   updateOrderStatus: (orderId: string, status: Order['status']) => void;
   refreshOrders: () => void;
   fetchOrders: () => Promise<void>;
@@ -77,7 +78,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
   // ── Auth ──────────────────────────────────────────────────
-  const signup = async (name: string, phone: string, email: string, pass: string): Promise<string | null> => {
+  const signup = async (name: string, phone: string, email: string, pass: string, address?: User['address']): Promise<string | null> => {
     if (!name || !phone || !pass) return 'Please fill all required fields';
     if (!/^\d{10}$/.test(phone)) return 'Enter a valid 10-digit phone number';
     
@@ -85,13 +86,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const res = await fetch(`${API_URL}/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, phone, email, password: pass, role: 'customer' }),
+        body: JSON.stringify({ name, phone, email, password: pass, role: 'customer', address }),
       });
       const data = await res.json();
       if (!data.success) return data.message;
       return null;
     } catch {
       return 'Server error. Please try again.';
+    }
+  };
+
+  const updateAddress = async (address: User['address']) => {
+    if (!currentUser) return;
+    try {
+      const res = await fetch(`${API_URL}/auth/address`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid: currentUser.uid, address }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCurrentUser(data.user);
+        ls.set('sk_session', data.user);
+      }
+    } catch (error) {
+      console.error('Failed to update address:', error);
     }
   };
 
@@ -159,7 +178,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const cartTotal = () => cartSubtotal() + deliveryCharge();
 
   // ── Orders ────────────────────────────────────────────────
-  const placeOrder = async (paymentMethod: string = 'cod'): Promise<Order | null> => {
+  const placeOrder = async (paymentMethod: string = 'cod', deliveryAddress?: User['address']): Promise<Order | null> => {
     if (!currentUser || cart.length === 0) return null;
     const subtotal = cartSubtotal();
     const delivery = deliveryCharge();
@@ -186,6 +205,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           delivery,
           total,
           paymentMethod,
+          deliveryAddress,
         }),
       });
       const data = await res.json();
@@ -244,7 +264,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       currentUser, cart, orders, toast, cartOpen,
-      signup, login, logout,
+      signup, login, logout, updateAddress,
       addToCart, changeQty, clearCart, cartSubtotal, deliveryCharge, cartTotal, setCartOpen,
       placeOrder, updateOrderStatus, refreshOrders, fetchOrders, setOrders, setCurrentUser,
       showToast,

@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
+import LocationPicker from '@/components/customer/LocationPicker';
+import { User } from '@/lib/types';
 
 type Tab = 'login' | 'signup';
 
@@ -13,15 +15,30 @@ export default function LoginPage() {
   const [tab, setTab] = useState<Tab>('login');
   const [loading, setLoading] = useState(false);
 
-  // Login fields
   const [loginId, setLoginId] = useState('');
   const [loginPass, setLoginPass] = useState('');
 
-  // Signup fields
   const [signupName, setSignupName] = useState('');
   const [signupPhone, setSignupPhone] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPass, setSignupPass] = useState('');
+  
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [address, setAddress] = useState<{
+    street: string;
+    area: string;
+    city: string;
+    state: string;
+    pincode: string;
+    location?: { lat: number; lng: number };
+  }>({
+    street: '',
+    area: '',
+    city: '',
+    state: '',
+    pincode: '',
+    location: undefined,
+  });
 
   const handleLogin = async () => {
     if (!loginId.trim() || !loginPass.trim()) {
@@ -37,7 +54,6 @@ export default function LoginPage() {
       return; 
     }
     
-    // Maintain your existing checkout redirect logic
     const pendingCheckout = sessionStorage.getItem('pending_checkout');
     if (pendingCheckout && role === 'customer') {
       sessionStorage.removeItem('pending_checkout');
@@ -57,7 +73,13 @@ export default function LoginPage() {
       return;
     }
     setLoading(true);
-    const err = await signup(signupName.trim(), signupPhone.trim(), signupEmail.trim(), signupPass.trim());
+    const err = await signup(
+      signupName.trim(), 
+      signupPhone.trim(), 
+      signupEmail.trim(), 
+      signupPass.trim(),
+      showAddressForm ? address : undefined
+    );
     setLoading(false);
     if (err) { 
       showToast('❌ ' + err); 
@@ -69,12 +91,9 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-4 py-10 relative overflow-hidden bg-gradient-to-br from-orange-50 via-white to-yellow-50">
-      
-      {/* Decorative Background Blobs for Vibrancy */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-orange-200/40 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-yellow-200/40 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Back to shop link */}
       <div className="absolute top-6 left-6 z-20">
         <button
           onClick={() => router.push('/customer')}
@@ -84,7 +103,6 @@ export default function LoginPage() {
         </button>
       </div>
 
-      {/* Header / Logo */}
       <div className="text-center mb-8 relative z-10 flex flex-col items-center">
         <div className="w-20 h-20 mb-4 bg-gradient-to-tr from-orange-500 to-yellow-400 rounded-2xl flex items-center justify-center shadow-xl shadow-orange-200 rotate-3 hover:rotate-6 transition-transform duration-300">
           <span className="text-5xl text-white drop-shadow-sm">✿</span>
@@ -102,14 +120,10 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Auth Card Container */}
-      <div className="w-full max-w-md bg-white/90 backdrop-blur-xl border border-orange-100 shadow-2xl shadow-orange-900/10 rounded-[2rem] p-8 sm:p-10 relative z-10 overflow-hidden">
-        
-        {/* Decorative top gradient line */}
+      <div className="w-full max-w-lg bg-white/90 backdrop-blur-xl border border-orange-100 shadow-2xl shadow-orange-900/10 rounded-[2rem] p-8 sm:p-10 relative z-10 overflow-hidden max-h-[90vh] overflow-y-auto">
         <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-yellow-400 via-orange-500 to-amber-600" />
 
-        {/* Tab bar */}
-        <div className="flex rounded-xl p-1.5 mb-8 bg-orange-50 border border-orange-100">
+        <div className="flex rounded-xl p-1.5 mb-6 bg-orange-50 border border-orange-100">
           {(['login', 'signup'] as Tab[]).map((t) => (
             <button
               key={t}
@@ -125,7 +139,6 @@ export default function LoginPage() {
           ))}
         </div>
 
-        {/* LOGIN */}
         {tab === 'login' && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
             <Field label="Phone / Email" value={loginId} onChange={setLoginId} placeholder="Enter phone or email" />
@@ -158,7 +171,6 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* SIGNUP */}
         {tab === 'signup' && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
             <Field label="Full Name" value={signupName} onChange={setSignupName} placeholder="Your full name" />
@@ -167,9 +179,39 @@ export default function LoginPage() {
             <Field label="Password" value={signupPass} onChange={setSignupPass} placeholder="Create a password" type="password" />
             
             <button
+              type="button"
+              onClick={() => setShowAddressForm(!showAddressForm)}
+              className="text-sm font-bold text-orange-600 hover:text-orange-700 transition-colors mb-4"
+            >
+              {showAddressForm ? '− Hide Address Details' : '+ Add Address Details (Optional)'}
+            </button>
+
+            {showAddressForm && (
+              <div className="space-y-3 mb-4 p-4 bg-orange-50 rounded-xl border border-orange-100">
+                <Field label="Street Address" value={address.street} onChange={(v) => setAddress({ ...address, street: v })} placeholder="House No., Street Name" />
+                <Field label="Area/Locality" value={address.area} onChange={(v) => setAddress({ ...address, area: v })} placeholder="Area, Landmark" />
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="City" value={address.city} onChange={(v) => setAddress({ ...address, city: v })} placeholder="City" />
+                  <Field label="State" value={address.state} onChange={(v) => setAddress({ ...address, state: v })} placeholder="State" />
+                </div>
+                <Field label="Pincode" value={address.pincode} onChange={(v) => setAddress({ ...address, pincode: v })} placeholder="6-digit pincode" />
+                
+                <div>
+                  <label className="block mb-1.5 text-[11px] font-black uppercase tracking-[0.15em] text-amber-950/60">
+                    Pick Location on Map
+                  </label>
+                  <LocationPicker
+                    location={address.location || null}
+                    onLocationChange={(loc) => setAddress({ ...address, location: loc || undefined })}
+                  />
+                </div>
+              </div>
+            )}
+            
+            <button
               onClick={handleSignup}
               disabled={loading}
-              className="w-full py-3.5 mt-4 text-base font-bold text-white rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 shadow-lg shadow-orange-200 transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:hover:translate-y-0 flex justify-center items-center"
+              className="w-full py-3.5 text-base font-bold text-white rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 shadow-lg shadow-orange-200 transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:hover:translate-y-0 flex justify-center items-center"
             >
               {loading ? (
                 <span className="flex items-center gap-2">
@@ -193,7 +235,6 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Admin link */}
         <div className="mt-8 pt-4 border-t border-orange-50 text-center">
           <p className="text-xs font-medium text-amber-900/40">
             Admin?{' '}
@@ -207,7 +248,6 @@ export default function LoginPage() {
   );
 }
 
-/* ── Reusable Input Field ── */
 function Field({
   label, value, onChange, placeholder, type = 'text',
 }: {
@@ -215,7 +255,7 @@ function Field({
   placeholder: string; type?: string;
 }) {
   return (
-    <div className="mb-4 text-left">
+    <div className="mb-3 text-left">
       <label className="block mb-1.5 text-[11px] font-black uppercase tracking-[0.15em] text-amber-950/60">
         {label}
       </label>

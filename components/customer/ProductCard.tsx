@@ -20,8 +20,8 @@ export default function ProductCard({ product }: Props) {
   const category = product.cat || product.category;
   const hasImage = product.image && product.image.startsWith('http');
   const isUnlimited = product.quantity === undefined || product.quantity === null;
-  const isLowStock = !isUnlimited && product.quantity <= 3 && product.quantity > 0;
-  const isOutOfStock = !product.inStock || (!isUnlimited && product.quantity <= 0);
+  const isLowStock = !isUnlimited && (product.quantity!) <= 3 && (product.quantity!) > 0;
+  const isOutOfStock = !product.inStock || (!isUnlimited && (product.quantity!) <= 0);
   const maxQty = isUnlimited ? 999 : product.quantity!;
 
   const handleAdd = () => {

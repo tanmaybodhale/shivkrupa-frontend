@@ -6,16 +6,17 @@ import { useApp } from '@/context/AppContext';
 import Navbar from '@/components/Navbar';
 import StatsGrid from '@/components/shopkeeper/StatsGrid';
 import OrdersTable from '@/components/shopkeeper/OrdersTable';
+import UsersMap from '@/components/shopkeeper/UsersMap';
 import Toast from '@/components/shared/Toast';
 import { Product, Order } from '@/lib/types';
-import { Plus, Pencil, Trash2, Check, X, Package, ClipboardList, Infinity as InfinityIcon } from 'lucide-react';
+import { Plus, Pencil, Trash2, Check, X, Package, ClipboardList, Infinity as InfinityIcon, Map } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export default function AdminPage() {
   const { currentUser, refreshOrders, showToast, setOrders } = useApp();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'orders' | 'catalog'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'catalog' | 'map'>('orders');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -102,6 +103,17 @@ export default function AdminPage() {
               <Package size={18} />
               Catalog
             </button>
+            <button
+              onClick={() => setActiveTab('map')}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
+                activeTab === 'map'
+                  ? 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow-md shadow-orange-200'
+                  : 'text-gray-500 hover:text-orange-600 hover:bg-orange-50'
+              }`}
+            >
+              <Map size={18} />
+              Map
+            </button>
           </div>
         </div>
 
@@ -116,6 +128,10 @@ export default function AdminPage() {
 
           {activeTab === 'catalog' && (
             <CatalogManager showToast={showToast} />
+          )}
+
+          {activeTab === 'map' && (
+            <UsersMap />
           )}
         </div>
 

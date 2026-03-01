@@ -16,12 +16,24 @@ export default function BillModal({ order, onClose }: Props) {
 
   const freeDelivery = order.delivery === 0;
 
+  const addressStr = order.deliveryAddress 
+    ? [order.deliveryAddress.street, order.deliveryAddress.area, order.deliveryAddress.city, order.deliveryAddress.pincode].filter(Boolean).join(', ')
+    : '';
+
   const handleClose = () => {
     onClose?.();
     showToast('🎉 Order placed! Thank you for shopping with us!');
   };
 
   const printBill = () => {
+    const addressHtml = addressStr ? `
+      <div class="sec">Delivery Address</div>
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:16px;padding:16px;margin-bottom:24px;">
+        <p style="font-size:13px;font-weight:600;color:#166534;">${addressStr}</p>
+        ${order.deliveryAddress?.location ? `<p style="font-size:11px;color:#15803d;margin-top:8px;">📍 Location coordinates: ${order.deliveryAddress.location.lat.toFixed(4)}, ${order.deliveryAddress.location.lng.toFixed(4)}</p>` : ''}
+      </div>
+    ` : '';
+
     // Updated HTML template with new Fonts and Orange/Yellow Theme
     const html = `<!DOCTYPE html>
 <html>
@@ -77,9 +89,10 @@ export default function BillModal({ order, onClose }: Props) {
       <div><label>Phone</label><p>${order.phone}</p></div>
       <div><label>Date & Time</label><p>${order.timeStr}</p></div>
     </div>
+    ${addressHtml}
     <div class="sec">Items Ordered</div>
     <div style="border: 1px solid #ffedd5; padding: 0 16px; border-radius: 16px;">
-      ${order.items.map(i => `
+      ${order.items.map((i: any) => `
         <div class="row">
           <span style="font-size:20px">${i.emoji || '📦'}</span>
           <span class="nm">${i.name}</span>
@@ -174,7 +187,7 @@ export default function BillModal({ order, onClose }: Props) {
                       {item.image?.startsWith('http') ? (
                         <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                       ) : (
-                        <span className="text-xl">{item.emoji || '📦'}</span>
+                        <span className="text-xl">{(item as any).emoji || '📦'}</span>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">

@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/context/ThemeContext';
 import Navbar from '@/components/Navbar';
@@ -15,9 +14,8 @@ import BillModal from '@/components/shared/BillModal';
 import Toast from '@/components/shared/Toast';
 
 export default function CustomerPage() {
-  const { currentUser, setCartOpen } = useApp();
+  const { setCartOpen } = useApp();
   const { isDark } = useTheme();
-  const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
 
   // Maintain existing logic: Set mounted state
@@ -27,13 +25,15 @@ export default function CustomerPage() {
 
   // Maintain existing logic: Handle checkout redirect and URL cleanup
   useEffect(() => {
-    if (mounted && searchParams.get('checkout') === 'true') {
+    if (!mounted) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('checkout') === 'true') {
       setCartOpen(true);
       const url = new URL(window.location.href);
       url.searchParams.delete('checkout');
       window.history.replaceState({}, '', url);
     }
-  }, [mounted, searchParams, setCartOpen]);
+  }, [mounted, setCartOpen]);
 
   if (!mounted) return null;
 

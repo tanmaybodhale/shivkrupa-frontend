@@ -4,11 +4,24 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/context/ThemeContext';
-import { CATEGORIES, FREE_DELIVERY_THRESHOLD, DELIVERY_CHARGE } from '@/lib/data';
+import { FREE_DELIVERY_THRESHOLD, DELIVERY_CHARGE } from '@/lib/data';
 import BillModal from '@/components/shared/BillModal';
 import LocationPicker from './LocationPicker';
-import { Order, Product, User } from '@/lib/types';
-import { X, ShoppingBag, Truck, Banknote, CreditCard, Minus, Plus, MapPin, Navigation } from 'lucide-react';
+import { Order, Product } from '@/lib/types';
+import { X, ShoppingBag, Truck, Banknote, CreditCard, Minus, Plus, MapPin } from 'lucide-react';
+
+const CATEGORY_LABELS: Record<string, string> = {
+  stationery: 'Stationery',
+  snacks: 'Snacks',
+  gifts: 'Gifts',
+  jewellery: 'Jewellery',
+  cutlery: 'Cutlery',
+  xerox: 'Xerox / Print',
+  cosmetics: 'Cosmetics',
+  bags: 'Bags & Pouches',
+  toys: 'Toys',
+  household: 'Household',
+};
 
 export default function CartSidebar() {
   const {
@@ -141,7 +154,7 @@ export default function CartSidebar() {
           ) : (
             cart.map(item => {
               const catId = item.cat || item.category;
-              const cat = CATEGORIES.find(c => c.id === catId);
+              const catLabel = CATEGORY_LABELS[(catId || '').toLowerCase()] || item.category;
               const itemId = getProductId(item);
               const hasImage = item.image && item.image.startsWith('http');
 
@@ -170,7 +183,7 @@ export default function CartSidebar() {
                         {item.name}
                       </h5>
                       <p className={`text-[11px] font-semibold mt-0.5 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
-                        {cat?.label || item.category}
+                        {catLabel}
                       </p>
                     </div>
 

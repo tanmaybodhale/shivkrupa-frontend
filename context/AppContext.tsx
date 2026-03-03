@@ -6,7 +6,7 @@ import React, {
 } from 'react';
 import { User, CartItem, Order, Product } from '@/lib/types';
 import {
-  FREE_DELIVERY_THRESHOLD, DELIVERY_CHARGE, SHOPKEEPER_PASS,
+  FREE_DELIVERY_THRESHOLD, DELIVERY_CHARGE,
 } from '@/lib/data';
 
 // ─── helpers ────────────────────────────────────────────────

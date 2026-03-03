@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
+import { useTheme } from '@/context/ThemeContext';
 import Navbar from '@/components/Navbar';
 import StatsGrid from '@/components/shopkeeper/StatsGrid';
 import OrdersTable from '@/components/shopkeeper/OrdersTable';
@@ -10,6 +11,7 @@ import Toast from '@/components/shared/Toast';
 
 export default function ShopkeeperPage() {
   const { currentUser, refreshOrders } = useApp();
+  const { isDark } = useTheme();
   const router = useRouter();
 
   useEffect(() => {
@@ -21,7 +23,7 @@ export default function ShopkeeperPage() {
   if (!currentUser || currentUser.role !== 'shopkeeper') return null;
 
   return (
-    <>
+    <div className={`min-h-screen transition-colors duration-300 ${isDark ? 'bg-[#0f0d1a]' : ''}`}>
       <Navbar />
       <div className="max-w-screen-xl mx-auto px-4 pb-20">
         {/* Header */}
@@ -39,6 +41,6 @@ export default function ShopkeeperPage() {
         <OrdersTable />
       </div>
       <Toast />
-    </>
+    </div>
   );
 }

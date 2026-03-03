@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useProductFilter } from './useProductFilter';
+import { useTheme } from '@/context/ThemeContext';
 import ProductCard from './ProductCard';
 import { Product } from '@/lib/types';
 
@@ -9,6 +10,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export default function ProductGrid() {
   const { activeCategory, sort, priceRange, search } = useProductFilter();
+  const { isDark } = useTheme();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -36,21 +38,21 @@ export default function ProductGrid() {
     let list = products.filter(p => {
       const productCategory = (p.category || p.cat || '').toLowerCase();
       const activeCat = activeCategory.toLowerCase();
-      const matchCat    = activeCategory === 'all' || productCategory === activeCat;
+      const matchCat = activeCategory === 'all' || productCategory === activeCat;
       const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
-                          productCategory.includes(search.toLowerCase());
+        productCategory.includes(search.toLowerCase());
       let matchPrice = true;
-      if (priceRange === '0-50')    matchPrice = p.price < 50;
-      if (priceRange === '50-100')  matchPrice = p.price >= 50  && p.price <= 100;
-      if (priceRange === '100-300') matchPrice = p.price > 100  && p.price <= 300;
-      if (priceRange === '300+')    matchPrice = p.price > 300;
+      if (priceRange === '0-50') matchPrice = p.price < 50;
+      if (priceRange === '50-100') matchPrice = p.price >= 50 && p.price <= 100;
+      if (priceRange === '100-300') matchPrice = p.price > 100 && p.price <= 300;
+      if (priceRange === '300+') matchPrice = p.price > 300;
       return matchCat && matchSearch && matchPrice;
     });
 
-    if (sort === 'price-asc')  list = [...list].sort((a, b) => a.price - b.price);
+    if (sort === 'price-asc') list = [...list].sort((a, b) => a.price - b.price);
     if (sort === 'price-desc') list = [...list].sort((a, b) => b.price - a.price);
-    if (sort === 'new')        list = [...list].sort((a, b) => Number(b.isNew) - Number(a.isNew));
-    if (sort === 'name')       list = [...list].sort((a, b) => a.name.localeCompare(b.name));
+    if (sort === 'new') list = [...list].sort((a, b) => Number(b.isNew) - Number(a.isNew));
+    if (sort === 'name') list = [...list].sort((a, b) => a.name.localeCompare(b.name));
 
     return list;
   }, [products, activeCategory, sort, priceRange, search]);
@@ -78,9 +80,9 @@ export default function ProductGrid() {
         <span
           className="text-xs font-sans font-bold px-3 py-1 rounded-full"
           style={{
-            background: 'var(--gold-pale)',
-            color: 'var(--brown)',
-            border: '1px solid rgba(201,148,26,.3)',
+            background: isDark ? '#1a1535' : 'var(--gold-pale)',
+            color: isDark ? '#a5b4fc' : 'var(--brown)',
+            border: isDark ? '1px solid #2d2450' : '1px solid rgba(201,148,26,.3)',
           }}
         >
           {filtered.length} items

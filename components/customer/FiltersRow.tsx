@@ -1,29 +1,31 @@
 'use client';
 
 import { useProductFilter } from './useProductFilter';
+import { useTheme } from '@/context/ThemeContext';
 
 export default function FiltersRow() {
   const { sort, priceRange, search, setSort, setPriceRange, setSearch } = useProductFilter();
+  const { isDark } = useTheme();
 
   const selectStyle = {
     padding: '9px 14px',
     borderRadius: 10,
-    border: '2px solid #e0e0e0',
-    background: '#fff',
+    border: isDark ? '2px solid #2d2450' : '2px solid #e0e0e0',
+    background: isDark ? '#1a1535' : '#fff',
     fontSize: 13,
     fontWeight: 600,
-    color: 'var(--dark)',
+    color: isDark ? '#e8e0f0' : 'var(--dark)',
     cursor: 'pointer',
     outline: 'none',
     fontFamily: 'inherit',
-    transition: 'border-color .2s',
+    transition: 'border-color .2s, background .2s',
   } as React.CSSProperties;
 
   return (
     <div className="flex gap-3 mb-6 flex-wrap items-center">
       {/* Search */}
       <div className="relative flex-1 min-w-[200px]">
-        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg" style={{ color: 'var(--muted)' }}>
+        <span className={`absolute left-4 top-1/2 -translate-y-1/2 text-lg ${isDark ? 'text-gray-500' : ''}`} style={{ color: isDark ? undefined : 'var(--muted)' }}>
           🔍
         </span>
         <input
@@ -31,19 +33,21 @@ export default function FiltersRow() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search products — pens, earrings, chocolates..."
-          className="w-full pl-11 pr-4 py-3 rounded-xl text-sm outline-none"
+          className={`w-full pl-11 pr-4 py-3 rounded-xl text-sm outline-none transition-all ${isDark ? 'text-gray-200 placeholder-gray-600' : ''
+            }`}
           style={{
-            border: '2px solid #e0e0e0',
-            background: '#fff',
+            border: isDark ? '2px solid #2d2450' : '2px solid #e0e0e0',
+            background: isDark ? '#1a1535' : '#fff',
             fontSize: 14,
             transition: 'border-color .2s',
+            color: isDark ? '#e8e0f0' : undefined,
           }}
-          onFocus={e => (e.currentTarget.style.borderColor = 'var(--gold)')}
-          onBlur={e => (e.currentTarget.style.borderColor = '#e0e0e0')}
+          onFocus={e => (e.currentTarget.style.borderColor = isDark ? '#6366f1' : 'var(--gold)')}
+          onBlur={e => (e.currentTarget.style.borderColor = isDark ? '#2d2450' : '#e0e0e0')}
         />
       </div>
 
-      <label className="text-sm font-semibold" style={{ color: 'var(--muted)' }}>Sort:</label>
+      <label className={`text-sm font-semibold ${isDark ? 'text-gray-400' : ''}`} style={{ color: isDark ? undefined : 'var(--muted)' }}>Sort:</label>
       <select
         value={sort}
         onChange={e => setSort(e.target.value)}
@@ -56,7 +60,7 @@ export default function FiltersRow() {
         <option value="name">Name A–Z</option>
       </select>
 
-      <label className="text-sm font-semibold" style={{ color: 'var(--muted)' }}>Price:</label>
+      <label className={`text-sm font-semibold ${isDark ? 'text-gray-400' : ''}`} style={{ color: isDark ? undefined : 'var(--muted)' }}>Price:</label>
       <select
         value={priceRange}
         onChange={e => setPriceRange(e.target.value)}

@@ -17,6 +17,20 @@
   --green-light: #e8f5e9;
 }
 
+/* ── Dark Theme CSS Variables ── */
+html.dark {
+  --gold:        #e8b84a;
+  --gold-light:  #fcd34d;
+  --gold-pale:   #1e1b2e;
+  --dark:        #e8e0f0;
+  --dark2:       #c8bdd4;
+  --brown:       #c9a87c;
+  --cream:       #0f0d1a;
+  --muted:       #9ca3af;
+  --green:       #4ade80;
+  --green-light: #1a2e1a;
+}
+
 * { box-sizing: border-box; }
 
 body {
@@ -26,6 +40,7 @@ body {
   color: var(--dark);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* ── Typography ── */
@@ -44,17 +59,29 @@ body {
 .text-muted-gold { color: var(--muted); }
 .border-gold   { border-color: rgba(201, 148, 26, 0.35); }
 
+html.dark .bg-dark-grad { background: linear-gradient(135deg, #0f0d1a 0%, #1a1535 50%, #251e40 100%); }
+html.dark .bg-auth-grad { background: linear-gradient(135deg, #0f0d1a 0%, #1a1535 40%, #2d2450 100%); }
+
 /* ── Cards ── */
 .card {
   background: #fff;
   border-radius: 16px;
   border: 1px solid #e5e5e5;
   box-shadow: 0 4px 24px rgba(0,0,0,.08);
-  transition: transform .25s, box-shadow .25s;
+  transition: transform .25s, box-shadow .25s, background-color 0.3s;
 }
 .card:hover {
   transform: translateY(-4px);
   box-shadow: 0 12px 40px rgba(0,0,0,.14);
+}
+
+html.dark .card {
+  background: #1a1535;
+  border-color: #2d2450;
+  box-shadow: 0 4px 24px rgba(0,0,0,.3);
+}
+html.dark .card:hover {
+  box-shadow: 0 12px 40px rgba(99,80,180,.2);
 }
 
 /* ── Buttons ── */
@@ -77,6 +104,10 @@ body {
   transition: opacity .2s;
 }
 .btn-dark:hover { opacity: .85; }
+
+html.dark .btn-gold {
+  color: #0f0d1a;
+}
 
 /* ── Auth form inputs ── */
 .auth-input {
@@ -122,10 +153,25 @@ body {
   box-shadow: 0 6px 16px rgba(201,148,26,.2);
 }
 
+html.dark .cat-chip {
+  background: #1a1535;
+  border-color: #2d2450;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
+html.dark .cat-chip:hover, html.dark .cat-chip.active {
+  border-color: var(--gold);
+  background: #251e40;
+  box-shadow: 0 6px 16px rgba(232,184,74,.15);
+}
+
 /* ── Status badges ── */
 .status-pending   { background:#fff3cd; color:#856404; border:1px solid #ffc107; }
 .status-confirmed { background:#d4edda; color:#155724; border:1px solid #28a745; }
 .status-delivered { background:#cce5ff; color:#004085; border:1px solid #007bff; }
+
+html.dark .status-pending   { background:#3d3200; color:#fcd34d; border-color:#a3860a; }
+html.dark .status-confirmed { background:#0a3d1a; color:#4ade80; border-color:#22c55e; }
+html.dark .status-delivered { background:#0a2040; color:#60a5fa; border-color:#3b82f6; }
 
 /* ── Product tag badge ── */
 .tag-badge          { background:var(--gold); color:var(--dark); }
@@ -175,6 +221,11 @@ body {
 }
 .cart-sidebar.open { right: 0; }
 
+html.dark .cart-sidebar {
+  background: #13102a;
+  box-shadow: -8px 0 48px rgba(0,0,0,.5);
+}
+
 /* ── Toast ── */
 .toast {
   position: fixed;
@@ -198,8 +249,54 @@ body {
 }
 .toast.show { transform: translateX(-50%) translateY(0); }
 
+html.dark .toast {
+  background: #251e40;
+  color: #e8e0f0;
+  border-color: rgba(232,184,74,.3);
+}
+
 /* ── Print ── */
 @media print {
   .no-print { display: none !important; }
   body { background: #fff !important; }
+}
+
+/* ═════════════════════════════════════════════════════════════
+   DARK MODE THEME TOGGLE BUTTON ANIMATION
+   ═════════════════════════════════════════════════════════════ */
+@keyframes theme-toggle-morph {
+  0%   { transform: scale(1) rotate(0deg); }
+  50%  { transform: scale(0.8) rotate(180deg); }
+  100% { transform: scale(1) rotate(360deg); }
+}
+.theme-toggle-spin {
+  animation: theme-toggle-morph 0.5s cubic-bezier(.4,0,.2,1);
+}
+
+/* ═════════════════════════════════════════════════════════════
+   GLOBAL DARK MODE OVERRIDES — Comprehensive Tailwind Targets
+   These ensure that all hardcoded bg-white, text-gray, etc.
+   elements in components also get dark theme styling.
+   ═════════════════════════════════════════════════════════════ */
+
+/* Inputs in dark mode */
+html.dark input,
+html.dark select,
+html.dark textarea {
+  color-scheme: dark;
+}
+
+/* Scrollbars in dark mode */
+html.dark ::-webkit-scrollbar {
+  width: 8px;
+}
+html.dark ::-webkit-scrollbar-track {
+  background: #13102a;
+}
+html.dark ::-webkit-scrollbar-thumb {
+  background: #2d2450;
+  border-radius: 4px;
+}
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #3d3470;
 }

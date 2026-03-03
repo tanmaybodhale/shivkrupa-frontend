@@ -2,12 +2,14 @@
 
 import { useState } from 'react';
 import { useApp } from '@/context/AppContext';
+import { useTheme } from '@/context/ThemeContext';
 import { Order } from '@/lib/types';
 import OrderDetailModal from './OrderDetailModal';
 import { Eye, PackageOpen, Activity } from 'lucide-react';
 
 export default function OrdersTable() {
   const { orders } = useApp();
+  const { isDark } = useTheme();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   const sorted = [...orders].reverse();
@@ -30,17 +32,17 @@ export default function OrdersTable() {
 
   return (
     <>
-      <div className="bg-white rounded-[2rem] shadow-sm shadow-orange-900/5 border border-orange-100/50 overflow-hidden">
-        
+      <section className={`card overflow-hidden ${isDark ? 'bg-[#1a1535] border-[#2d2450]' : ''}`}>
+
         {/* Section header - Now with the vibrant orange + yellow gradient! */}
-        <div className="p-5 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gradient-to-r from-orange-500 to-yellow-500 border-b border-orange-200/50">
+        <div className={`p-5 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b ${isDark ? 'bg-gradient-to-r from-indigo-600 to-purple-600 border-indigo-700/50' : 'bg-gradient-to-r from-orange-500 to-yellow-500 border-orange-200/50'}`}>
           <div>
             <h3 className="font-black text-xl text-white drop-shadow-sm">Live Orders</h3>
-            <p className="text-sm font-medium text-orange-50 mt-0.5">
+            <p className={`text-sm font-medium mt-0.5 ${isDark ? 'text-gray-200' : 'text-orange-50'}`}>
               Monitor and manage incoming customer requests
             </p>
           </div>
-          
+
           <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl shadow-sm border border-white/50">
             <Activity size={16} className="text-emerald-500" />
             <span className="relative flex h-2.5 w-2.5">
@@ -55,11 +57,11 @@ export default function OrdersTable() {
 
         {orders.length === 0 ? (
           <div className="p-12 text-center flex flex-col items-center justify-center">
-            <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mb-4">
+            <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 ${isDark ? 'bg-indigo-900/30' : 'bg-orange-50'}`}>
               <PackageOpen size={32} className="text-orange-300" />
             </div>
-            <h4 className="text-lg font-bold text-gray-900">No orders yet</h4>
-            <p className="text-gray-500 text-sm mt-1 max-w-sm">
+            <h4 className={`text-lg font-bold ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>No orders yet</h4>
+            <p className={`text-sm mt-1 max-w-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
               Incoming customer orders will automatically appear here once they checkout.
             </p>
           </div>
@@ -67,7 +69,7 @@ export default function OrdersTable() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[1000px]">
               <thead>
-                <tr className="bg-gray-50/80 border-b border-gray-100">
+                <tr className={`border-b ${isDark ? 'bg-[#13102a]/50 border-[#2d2450]' : 'bg-gray-50/80 border-gray-100'}`}>
                   <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Order ID</th>
                   <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Customer</th>
                   <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Items</th>
@@ -78,42 +80,42 @@ export default function OrdersTable() {
                   <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className={`divide-y ${isDark ? 'divide-[#2d2450]' : 'divide-gray-100'}`}>
                 {sorted.map((order) => (
                   <tr
                     key={order.orderId}
                     onClick={() => setSelectedOrder(order)}
-                    className="hover:bg-orange-50/30 transition-colors cursor-pointer group"
+                    className={`transition-colors cursor-pointer group ${isDark ? 'hover:bg-indigo-500/5' : 'hover:bg-orange-50/30'}`}
                   >
                     {/* Order ID */}
                     <td className="px-6 py-4">
-                      <span className="text-[11px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md bg-gray-100 text-gray-600 border border-gray-200">
+                      <span className={`text-[11px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md border ${isDark ? 'bg-indigo-900/30 text-indigo-300 border-indigo-500/30' : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                         {order.orderId}
                       </span>
                     </td>
-                    
+
                     {/* Customer */}
                     <td className="px-6 py-4">
-                      <div className="font-bold text-sm text-gray-900">{order.name}</div>
+                      <div className={`font-bold text-sm ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{order.name}</div>
                       <div className="text-xs font-semibold text-gray-400 mt-0.5 tracking-wide">
                         {order.phone}
                       </div>
                     </td>
-                    
+
                     {/* Items */}
                     <td className="px-6 py-4">
-                      <span className="text-xs font-bold bg-gray-100 px-2 py-1 rounded-lg text-gray-600">
+                      <span className={`text-xs font-bold px-2 py-1 rounded-lg ${isDark ? 'bg-indigo-900/30 text-indigo-300' : 'bg-gray-100 text-gray-600'}`}>
                         {order.items.length} item{order.items.length > 1 ? 's' : ''}
                       </span>
                     </td>
-                    
+
                     {/* Amount */}
                     <td className="px-6 py-4">
-                      <span className="text-sm font-black text-gray-900">
+                      <span className={`text-sm font-black ${isDark ? 'text-indigo-400' : 'text-gray-900'}`}>
                         ₹{order.total}
                       </span>
                     </td>
-                    
+
                     {/* Delivery */}
                     <td className="px-6 py-4">
                       {order.delivery === 0 ? (
@@ -126,21 +128,21 @@ export default function OrdersTable() {
                         </span>
                       )}
                     </td>
-                    
+
                     {/* Time */}
                     <td className="px-6 py-4">
                       <span className="text-[11px] font-bold text-gray-400">
                         {order.timeStr}
                       </span>
                     </td>
-                    
+
                     {/* Status */}
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${getStatusStyle(order.status)}`}>
                         {order.status}
                       </span>
                     </td>
-                    
+
                     {/* Action */}
                     <td className="px-6 py-4 text-right">
                       <button
@@ -160,7 +162,7 @@ export default function OrdersTable() {
             </table>
           </div>
         )}
-      </div>
+      </section>
 
       {selectedOrder && (
         <OrderDetailModal

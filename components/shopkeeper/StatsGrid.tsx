@@ -1,21 +1,23 @@
 'use client';
 
 import { useApp } from '@/context/AppContext';
+import { useTheme } from '@/context/ThemeContext';
 
 export default function StatsGrid() {
   const { orders, } = useApp();
+  const { isDark } = useTheme();
 
-  const totalRevenue  = orders.reduce((s, o) => s + o.total, 0);
-  const todayOrders   = orders.filter(o =>
+  const totalRevenue = orders.reduce((s, o) => s + o.total, 0);
+  const todayOrders = orders.filter(o =>
     new Date(o.time).toDateString() === new Date().toDateString()
   );
   const uniqueClients = new Set(orders.map(o => o.uid)).size;
 
   const stats = [
-    { icon: '📦', value: orders.length, label: 'Total Orders',    bg: 'linear-gradient(135deg,#fdf6e3,#fff3cd)' },
-    { icon: '₹',  value: `₹${totalRevenue}`, label: 'Total Revenue', bg: 'linear-gradient(135deg,#e8f5e9,#c8e6c9)' },
-    { icon: '👥', value: uniqueClients, label: 'Customers',       bg: 'linear-gradient(135deg,#e3f2fd,#bbdefb)' },
-    { icon: '🕐', value: todayOrders.length, label: "Today's Orders", bg: 'linear-gradient(135deg,#ffebee,#ffcdd2)' },
+    { icon: '📦', value: orders.length, label: 'Total Orders', bg: isDark ? 'linear-gradient(135deg,#1e1b2e,#2d2450)' : 'linear-gradient(135deg,#fdf6e3,#fff3cd)' },
+    { icon: '₹', value: `₹${totalRevenue}`, label: 'Total Revenue', bg: isDark ? 'linear-gradient(135deg,#0a2e1a,#1a3d2a)' : 'linear-gradient(135deg,#e8f5e9,#c8e6c9)' },
+    { icon: '👥', value: uniqueClients, label: 'Customers', bg: isDark ? 'linear-gradient(135deg,#0a1530,#1a2540)' : 'linear-gradient(135deg,#e3f2fd,#bbdefb)' },
+    { icon: '🕐', value: todayOrders.length, label: "Today's Orders", bg: isDark ? 'linear-gradient(135deg,#2e0a1a,#3d1a2a)' : 'linear-gradient(135deg,#ffebee,#ffcdd2)' },
   ];
 
   return (

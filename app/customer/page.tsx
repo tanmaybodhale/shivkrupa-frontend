@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
+import { useTheme } from '@/context/ThemeContext';
 import Navbar from '@/components/Navbar';
 import HeroBanner from '@/components/customer/HeroBanner';
 import DeliveryBar from '@/components/customer/DeliveryBar';
@@ -15,6 +16,7 @@ import Toast from '@/components/shared/Toast';
 
 export default function CustomerPage() {
   const { currentUser, setCartOpen } = useApp();
+  const { isDark } = useTheme();
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
 
@@ -36,13 +38,13 @@ export default function CustomerPage() {
   if (!mounted) return null;
 
   return (
-    <main className="min-h-screen bg-[#fffbf5]">
-      
+    <main className={`min-h-screen transition-colors duration-300 ${isDark ? 'bg-[#0f0d1a]' : 'bg-[#fffbf5]'}`}>
+
       {/* Navbar handles its own sticky positioning and borders now */}
       <Navbar />
 
       <div className="max-w-screen-xl mx-auto px-4 pb-24 space-y-8 pt-2">
-        
+
         {/* Hero Section - Removed the outer container causing the white space */}
         <section>
           <HeroBanner />
@@ -56,13 +58,13 @@ export default function CustomerPage() {
         {/* Discovery Section: Categories & Filters */}
         <section className="space-y-4 pt-2">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl sm:text-2xl font-display font-extrabold text-amber-950 tracking-tight">
-              Explore <span className="text-orange-500">Categories</span>
+            <h2 className={`text-xl sm:text-2xl font-display font-extrabold tracking-tight ${isDark ? 'text-gray-100' : 'text-amber-950'}`}>
+              Explore <span className={isDark ? 'text-indigo-400' : 'text-orange-500'}>Categories</span>
             </h2>
           </div>
-          
+
           <CategoryRow />
-          
+
           <div className="pt-2">
             <FiltersRow />
           </div>
@@ -71,13 +73,13 @@ export default function CustomerPage() {
         {/* Main Product Display */}
         <section className="pt-6">
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-xl sm:text-2xl font-display font-extrabold text-amber-950 tracking-tight">
+            <h3 className={`text-xl sm:text-2xl font-display font-extrabold tracking-tight ${isDark ? 'text-gray-100' : 'text-amber-950'}`}>
               Fresh for you
             </h3>
             {/* Crisp, modern divider line */}
-            <div className="h-px flex-grow mx-4 bg-orange-200/50" />
+            <div className={`h-px flex-grow mx-4 ${isDark ? 'bg-[#2d2450]/50' : 'bg-orange-200/50'}`} />
           </div>
-          
+
           <ProductGrid />
         </section>
       </div>
@@ -87,8 +89,8 @@ export default function CustomerPage() {
       <BillModal />
       <Toast />
 
-      {/* Sharp Accent Line at bottom (Matches the top of the HeroBanner) */}
-      <div className="fixed bottom-0 left-0 w-full h-1 bg-yellow-400 z-50" />
+      {/* Sharp Accent Line at bottom */}
+      <div className={`fixed bottom-0 left-0 w-full h-1 z-50 ${isDark ? 'bg-indigo-500' : 'bg-yellow-400'}`} />
     </main>
   );
 }

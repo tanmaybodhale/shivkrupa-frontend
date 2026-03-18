@@ -3,7 +3,7 @@
 import { Order } from '@/lib/types';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/context/ThemeContext';
-import { X, User, Phone, Clock, Package, CheckCircle2, XCircle, Timer, ClipboardCheck, MapPin, Navigation } from 'lucide-react';
+import { X, User, Phone, Clock, Package, CheckCircle2, XCircle, Timer, ClipboardCheck, MapPin, Navigation, Truck } from 'lucide-react';
 
 interface Props {
   order: Order;
@@ -39,6 +39,13 @@ export default function OrderDetailModal({ order, onClose, onUpdated }: Props) {
           style: isActive
             ? 'bg-blue-500 text-white border-blue-600 shadow-md shadow-blue-200'
             : (isDark ? 'bg-[#1a1535] text-blue-400 border-blue-700/50 hover:bg-blue-900/20' : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-50')
+        };
+      case 'dispatched':
+        return {
+          icon: <Truck size={16} />,
+          style: isActive
+            ? 'bg-cyan-500 text-white border-cyan-600 shadow-md shadow-cyan-200'
+            : (isDark ? 'bg-[#1a1535] text-cyan-400 border-cyan-700/50 hover:bg-cyan-900/20' : 'bg-white text-cyan-700 border-cyan-200 hover:bg-cyan-50')
         };
       case 'delivered':
         return {
@@ -217,8 +224,8 @@ export default function OrderDetailModal({ order, onClose, onUpdated }: Props) {
             <p className={`text-[10px] uppercase tracking-[0.15em] font-black mb-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
               Update Order Status
             </p>
-            <div className="grid grid-cols-2 gap-2.5">
-              {(['pending', 'confirmed', 'delivered', 'cancelled'] as Order['status'][]).map(s => {
+            <div className="grid grid-cols-3 gap-2.5">
+              {(['pending', 'confirmed', 'dispatched', 'delivered', 'cancelled'] as Order['status'][]).map(s => {
                 const isActive = order.status === s;
                 const config = getStatusConfig(s, isActive);
 

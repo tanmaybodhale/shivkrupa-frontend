@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useProductFilter } from './useProductFilter';
 import { useTheme } from '@/context/ThemeContext';
+import { useLang } from '@/context/LanguageContext';
 import { Product } from '@/lib/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
@@ -23,6 +24,7 @@ const CATEGORY_EMOJI: Record<string, string> = {
 export default function CategoryRow() {
   const { activeCategory, setActiveCategory } = useProductFilter();
   const { isDark } = useTheme();
+  const { t } = useLang();
   const [categories, setCategories] = useState<string[]>([]);
 
   useEffect(() => {
@@ -31,8 +33,12 @@ export default function CategoryRow() {
         const res = await fetch(`${API_URL}/catalog`);
         const data = await res.json();
         if (data.success && data.products) {
-          const cats = [...new Set(data.products.map((p: Product) => p.category))];
-          setCategories(cats.filter(Boolean) as string[]);
+          const cats = [...new Set(
+            data.products
+              .map((p: Product) => (p.category || '').trim().toLowerCase())
+              .filter(Boolean)
+          )];
+          setCategories(cats as string[]);
         }
       } catch (error) {
         console.error('Failed to fetch categories:', error);
@@ -65,7 +71,7 @@ export default function CategoryRow() {
             🛍️
           </span>
           <span className={`text-[11px] font-black tracking-wide text-center px-1 leading-tight ${activeCategory === 'all' ? 'text-white' : ''}`}>
-            All Items
+            {t('allItems')}
           </span>
         </button>
 

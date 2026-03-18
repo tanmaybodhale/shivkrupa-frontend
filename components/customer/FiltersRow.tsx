@@ -2,10 +2,12 @@
 
 import { useProductFilter } from './useProductFilter';
 import { useTheme } from '@/context/ThemeContext';
+import { useLang } from '@/context/LanguageContext';
 
 export default function FiltersRow() {
   const { sort, priceRange, search, setSort, setPriceRange, setSearch } = useProductFilter();
   const { isDark } = useTheme();
+  const { t } = useLang();
 
   const selectStyle = {
     padding: '9px 14px',
@@ -32,7 +34,7 @@ export default function FiltersRow() {
           type="text"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Search products — pens, earrings, chocolates..."
+          placeholder={t('search')}
           className={`w-full pl-11 pr-4 py-3 rounded-xl text-sm outline-none transition-all ${isDark ? 'text-gray-200 placeholder-gray-600' : ''
             }`}
           style={{
@@ -47,7 +49,7 @@ export default function FiltersRow() {
         />
       </div>
 
-      <label className={`text-sm font-semibold ${isDark ? 'text-gray-400' : ''}`} style={{ color: isDark ? undefined : 'var(--muted)' }}>Sort:</label>
+      <label className={`text-sm font-semibold ${isDark ? 'text-gray-400' : ''}`} style={{ color: isDark ? undefined : 'var(--muted)' }}>{t('sortBy')}:</label>
       <select
         value={sort}
         onChange={e => setSort(e.target.value)}
@@ -60,7 +62,7 @@ export default function FiltersRow() {
         <option value="name">Name A–Z</option>
       </select>
 
-      <label className={`text-sm font-semibold ${isDark ? 'text-gray-400' : ''}`} style={{ color: isDark ? undefined : 'var(--muted)' }}>Price:</label>
+      <label className={`text-sm font-semibold ${isDark ? 'text-gray-400' : ''}`} style={{ color: isDark ? undefined : 'var(--muted)' }}>{t('priceRange')}:</label>
       <select
         value={priceRange}
         onChange={e => setPriceRange(e.target.value)}

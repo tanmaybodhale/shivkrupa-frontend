@@ -16,12 +16,17 @@ export default function AdminLoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<{ username?: string; password?: string }>({});
 
   const handleLogin = async () => {
-    if (!username.trim() || !password.trim()) {
-      showToast('❌ Please enter username and password');
+    const errs: { username?: string; password?: string } = {};
+    if (!username.trim()) errs.username = 'Name is required.';
+    if (!password.trim()) errs.password = 'Password is required.';
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
       return;
     }
+    setErrors({});
 
     setLoading(true);
     try {
@@ -38,7 +43,8 @@ export default function AdminLoginPage() {
         showToast('✅ Welcome Admin!');
         router.push('/admin');
       } else {
-        showToast('❌ ' + data.message);
+        setErrors({ password: 'Wrong ID or Password.' });
+        showToast('❌ Wrong ID or Password.');
       }
     } catch (error) {
       showToast('❌ Server error. Please try again.');
@@ -93,11 +99,12 @@ export default function AdminLoginPage() {
             <input
               type="text"
               value={username}
-              onChange={e => setUsername(e.target.value)}
+              onChange={e => { setUsername(e.target.value); setErrors(prev => ({ ...prev, username: undefined })); }}
               placeholder="Enter admin username"
-              className={`w-full px-4 py-3 rounded-xl border font-medium focus:outline-none focus:ring-4 transition-all ${isDark ? 'border-[#2d2450] bg-[#13102a] text-gray-200 placeholder-gray-600 focus:border-indigo-500 focus:ring-indigo-500/10 focus:bg-[#1a1535]' : 'border-orange-200 bg-orange-50/30 text-amber-950 placeholder-amber-900/30 focus:border-orange-500 focus:ring-orange-500/10 focus:bg-white'}`}
+              className={`w-full px-4 py-3 rounded-xl border font-medium focus:outline-none focus:ring-4 transition-all ${errors.username ? 'border-red-400 ring-2 ring-red-400/20' : ''} ${isDark ? 'border-[#2d2450] bg-[#13102a] text-gray-200 placeholder-gray-600 focus:border-indigo-500 focus:ring-indigo-500/10 focus:bg-[#1a1535]' : 'border-orange-200 bg-orange-50/30 text-amber-950 placeholder-amber-900/30 focus:border-orange-500 focus:ring-orange-500/10 focus:bg-white'}`}
               onKeyDown={e => e.key === 'Enter' && handleLogin()}
             />
+            {errors.username && <p className="mt-1 text-xs font-bold text-red-500">{errors.username}</p>}
           </div>
 
           <div className="mb-6 text-left">
@@ -107,11 +114,12 @@ export default function AdminLoginPage() {
             <input
               type="password"
               value={password}
-              onChange={e => setPassword(e.target.value)}
+              onChange={e => { setPassword(e.target.value); setErrors(prev => ({ ...prev, password: undefined })); }}
               placeholder="Enter admin password"
-              className={`w-full px-4 py-3 rounded-xl border font-medium focus:outline-none focus:ring-4 transition-all ${isDark ? 'border-[#2d2450] bg-[#13102a] text-gray-200 placeholder-gray-600 focus:border-indigo-500 focus:ring-indigo-500/10 focus:bg-[#1a1535]' : 'border-orange-200 bg-orange-50/30 text-amber-950 placeholder-amber-900/30 focus:border-orange-500 focus:ring-orange-500/10 focus:bg-white'}`}
+              className={`w-full px-4 py-3 rounded-xl border font-medium focus:outline-none focus:ring-4 transition-all ${errors.password ? 'border-red-400 ring-2 ring-red-400/20' : ''} ${isDark ? 'border-[#2d2450] bg-[#13102a] text-gray-200 placeholder-gray-600 focus:border-indigo-500 focus:ring-indigo-500/10 focus:bg-[#1a1535]' : 'border-orange-200 bg-orange-50/30 text-amber-950 placeholder-amber-900/30 focus:border-orange-500 focus:ring-orange-500/10 focus:bg-white'}`}
               onKeyDown={e => e.key === 'Enter' && handleLogin()}
             />
+            {errors.password && <p className="mt-1 text-xs font-bold text-red-500">{errors.password}</p>}
           </div>
 
           <button

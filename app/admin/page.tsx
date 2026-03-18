@@ -8,9 +8,10 @@ import Navbar from '@/components/Navbar';
 import StatsGrid from '@/components/shopkeeper/StatsGrid';
 import OrdersTable from '@/components/shopkeeper/OrdersTable';
 import UsersMap from '@/components/shopkeeper/UsersMap';
+import UsersManager from '@/components/shopkeeper/UsersManager';
 import Toast from '@/components/shared/Toast';
 import { Product, Order } from '@/lib/types';
-import { Plus, Pencil, Trash2, Check, X, Package, ClipboardList, Infinity as InfinityIcon, Map, Upload, ImageIcon, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Check, X, Package, ClipboardList, Infinity as InfinityIcon, Map, Users, Upload, Loader2 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -18,7 +19,7 @@ export default function AdminPage() {
   const { currentUser, refreshOrders, showToast, setOrders } = useApp();
   const { isDark } = useTheme();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'orders' | 'catalog' | 'map'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'catalog' | 'map' | 'users'>('orders');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -113,6 +114,16 @@ export default function AdminPage() {
               <Map size={18} />
               Map
             </button>
+            <button
+              onClick={() => setActiveTab('users')}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${activeTab === 'users'
+                ? (isDark ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-900/30' : 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow-md shadow-orange-200')
+                : (isDark ? 'text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10' : 'text-gray-500 hover:text-orange-600 hover:bg-orange-50')
+                }`}
+            >
+              <Users size={18} />
+              Users
+            </button>
           </div>
         </div>
 
@@ -131,6 +142,10 @@ export default function AdminPage() {
 
           {activeTab === 'map' && (
             <UsersMap />
+          )}
+
+          {activeTab === 'users' && (
+            <UsersManager showToast={showToast} />
           )}
         </div>
 
@@ -321,6 +336,7 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
               <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Name</th>
               <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Category</th>
               <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Price / MRP</th>
+              <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Weight</th>
               <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Qty</th>
               <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Status</th>
               <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400 text-right">Actions</th>
@@ -352,8 +368,8 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                           onClick={() => fileInputRef.current?.click()}
                           disabled={uploading}
                           className={`w-16 h-16 rounded-xl border-2 border-dashed flex items-center justify-center overflow-hidden transition-all cursor-pointer ${isDark
-                              ? 'border-[#2d2450] bg-[#13102a] hover:border-indigo-500 hover:bg-indigo-500/10'
-                              : 'border-orange-200 bg-orange-50/30 hover:border-orange-400 hover:bg-orange-50'
+                            ? 'border-[#2d2450] bg-[#13102a] hover:border-indigo-500 hover:bg-indigo-500/10'
+                            : 'border-orange-200 bg-orange-50/30 hover:border-orange-400 hover:bg-orange-50'
                             } ${uploading ? 'opacity-60 cursor-wait' : ''}`}
                           title={uploading ? 'Uploading...' : 'Click to upload image'}
                         >
@@ -376,6 +392,14 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                         value={editForm.name || ''}
                         onChange={e => setEditForm({ ...editForm, name: e.target.value })}
                         className="w-full min-w-[140px] px-3 py-2 rounded-xl border border-orange-200 bg-orange-50/30 text-sm font-bold text-gray-800 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all"
+                        placeholder="Product name"
+                      />
+                      <textarea
+                        value={editForm.description || ''}
+                        onChange={e => setEditForm({ ...editForm, description: e.target.value })}
+                        className="w-full min-w-[140px] mt-2 px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-xs font-medium text-gray-600 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all resize-none"
+                        placeholder="Description (optional)"
+                        rows={2}
                       />
                     </td>
                     <td className="px-6 py-3">
@@ -409,6 +433,15 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                           />
                         </div>
                       </div>
+                    </td>
+                    <td className="px-6 py-3">
+                      <input
+                        type="text"
+                        value={editForm.weight || ''}
+                        onChange={e => setEditForm({ ...editForm, weight: e.target.value })}
+                        className="w-24 px-2 py-2 rounded-xl border border-orange-200 bg-orange-50/30 text-sm font-medium text-gray-800 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all"
+                        placeholder="e.g. 200ml"
+                      />
                     </td>
                     <td className="px-6 py-3">
                       <div className="flex items-center gap-2">
@@ -473,6 +506,9 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                     </td>
                     <td className="px-6 py-4">
                       <div className="font-bold text-gray-900 text-sm">{product.name}</div>
+                      {product.description && (
+                        <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-2">{product.description}</p>
+                      )}
                       {product.tag && (
                         <span className="inline-block mt-1 px-2 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-black uppercase tracking-wider rounded-md">
                           {product.tag}
@@ -491,6 +527,11 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                           <span className="text-[11px] font-semibold text-gray-400 line-through">₹{product.mrp}</span>
                         )}
                       </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-xs font-semibold text-gray-500">
+                        {product.weight || '-'}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
                       {product.quantity === undefined || product.quantity === null ? (

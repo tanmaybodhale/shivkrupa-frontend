@@ -14,14 +14,17 @@ import {
   XCircle,
   ShoppingBag,
   CreditCard,
-  Banknote
+  Banknote,
+  Truck
 } from 'lucide-react';
+import { useLang } from '@/context/LanguageContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export default function CustomerOrdersPage() {
   const { currentUser, orders, fetchOrders, showToast } = useApp();
   const { isDark } = useTheme();
+  const { t } = useLang();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
@@ -62,6 +65,8 @@ export default function CustomerOrdersPage() {
         return { color: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: <Clock size={16} /> };
       case 'confirmed':
         return { color: 'bg-orange-100 text-orange-800 border-orange-200', icon: <Package size={16} /> };
+      case 'dispatched':
+        return { color: 'bg-cyan-100 text-cyan-800 border-cyan-200', icon: <Truck size={16} /> };
       case 'delivered':
         return { color: 'bg-green-100 text-green-800 border-green-200', icon: <CheckCircle2 size={16} /> };
       case 'cancelled':
@@ -104,7 +109,7 @@ export default function CustomerOrdersPage() {
             <ChevronLeft size={24} />
           </button>
           <h2 className={`text-2xl font-black tracking-tight ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
-            My Orders
+            {t('myOrders')}
           </h2>
         </div>
 
@@ -114,7 +119,7 @@ export default function CustomerOrdersPage() {
             <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-6 ${isDark ? 'bg-indigo-500/10' : 'bg-orange-50'}`}>
               <ShoppingBag size={48} className="text-orange-300" strokeWidth={1.5} />
             </div>
-            <h4 className={`text-xl font-bold mb-2 ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>No orders yet</h4>
+            <h4 className={`text-xl font-bold mb-2 ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>{t('noOrders')}</h4>
             <p className={`text-sm mb-8 max-w-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
               Looks like you haven't placed any orders. Start filling up your basket!
             </p>
@@ -122,7 +127,7 @@ export default function CustomerOrdersPage() {
               onClick={() => router.push('/customer')}
               className={`px-8 py-3.5 rounded-2xl font-bold text-white shadow-lg transition-all active:scale-95 ${isDark ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-900/50' : 'bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 shadow-orange-200'}`}
             >
-              Browse Products
+              {t('startShopping')}
             </button>
           </div>
         ) : (
@@ -188,7 +193,7 @@ export default function CustomerOrdersPage() {
                       <div>
                         <span className={`block text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-gray-600' : 'text-gray-500'}`}>Payment</span>
                         <span className={`block text-xs font-bold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                          {order.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Paid'}
+                          {order.paymentMethod === 'cod' ? t('cashOnDelivery') : t('online')}
                         </span>
                       </div>
                     </div>

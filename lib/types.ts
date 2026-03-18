@@ -34,6 +34,7 @@ export interface Product {
   price: number;
   mrp: number;
   description?: string;
+  weight?: string;
   image: string;
   emoji?: string;
   unit: string;
@@ -47,7 +48,7 @@ export interface CartItem extends Product {
   qty: number;
 }
 
-export type OrderStatus = 'pending' | 'confirmed' | 'delivered' | 'cancelled';
+export type OrderStatus = 'pending' | 'confirmed' | 'dispatched' | 'delivered' | 'cancelled';
 
 export interface Order {
   orderId: string;

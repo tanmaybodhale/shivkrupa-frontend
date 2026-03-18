@@ -3,6 +3,7 @@
 import { Product } from '@/lib/types';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useLang } from '@/context/LanguageContext';
 import { Plus, Minus } from 'lucide-react';
 
 interface Props { product: Product; }
@@ -10,6 +11,7 @@ interface Props { product: Product; }
 export default function ProductCard({ product }: Props) {
   const { cart, addToCart, changeQty, showToast } = useApp();
   const { isDark } = useTheme();
+  const { t } = useLang();
 
   // Used for finding the item in the cart (keeps your original logic)
   const numericId = product._id ? parseInt(product._id.slice(-8), 16) : product.id;
@@ -59,8 +61,8 @@ export default function ProductCard({ product }: Props) {
 
   return (
     <div className={`group flex flex-col rounded-2xl border shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden h-full relative ${isDark
-        ? 'bg-[#1a1535] border-[#2d2450] hover:border-indigo-500/50'
-        : 'bg-white border-orange-100/60 hover:border-orange-300'
+      ? 'bg-[#1a1535] border-[#2d2450] hover:border-indigo-500/50'
+      : 'bg-white border-orange-100/60 hover:border-orange-300'
       }`}>
 
       {/* Corner Badges */}
@@ -100,8 +102,13 @@ export default function ProductCard({ product }: Props) {
           {product.name}
         </h4>
         <p className={`text-[11px] font-medium mt-1 capitalize ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-          {category}
+          {category}{product.weight ? ` · ${product.weight}` : ''}
         </p>
+        {product.description && (
+          <p className={`text-[10px] mt-1 leading-snug line-clamp-2 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+            {product.description}
+          </p>
+        )}
 
         {/* Bottom Row: Price & Action */}
         <div className="mt-auto pt-3 flex items-end justify-between gap-1">
@@ -124,11 +131,11 @@ export default function ProductCard({ product }: Props) {
               <button
                 disabled
                 className={`w-full h-full rounded-lg text-[11px] font-bold cursor-not-allowed border ${isDark
-                    ? 'bg-[#13102a] text-gray-600 border-[#2d2450]'
-                    : 'bg-gray-100 text-gray-400 border-gray-200'
+                  ? 'bg-[#13102a] text-gray-600 border-[#2d2450]'
+                  : 'bg-gray-100 text-gray-400 border-gray-200'
                   }`}
               >
-                Out
+                {t('outOfStock')}
               </button>
             ) : inCart && cartItem ? (
               <div className={`w-full h-full flex items-center justify-between text-white rounded-lg shadow-sm overflow-hidden ${isDark ? 'bg-indigo-600 shadow-indigo-900/20' : 'bg-orange-500 shadow-orange-200'
@@ -153,11 +160,11 @@ export default function ProductCard({ product }: Props) {
               <button
                 onClick={handleAdd}
                 className={`w-full h-full rounded-lg text-xs font-black border transition-colors shadow-sm active:scale-95 uppercase tracking-wide ${isDark
-                    ? 'text-indigo-400 bg-indigo-500/10 border-indigo-500/30 hover:bg-indigo-500/20 hover:border-indigo-400/50'
-                    : 'text-orange-600 bg-orange-50 border-orange-200 hover:bg-orange-100 hover:border-orange-400'
+                  ? 'text-indigo-400 bg-indigo-500/10 border-indigo-500/30 hover:bg-indigo-500/20 hover:border-indigo-400/50'
+                  : 'text-orange-600 bg-orange-50 border-orange-200 hover:bg-orange-100 hover:border-orange-400'
                   }`}
               >
-                Add
+                {t('add')}
               </button>
             )}
           </div>
@@ -166,7 +173,7 @@ export default function ProductCard({ product }: Props) {
         {/* Low Stock Warning */}
         {isLowStock && (
           <p className="text-[10px] font-bold text-red-500 mt-1.5 leading-none">
-            Only {product.quantity} left!
+            {t('onlyLeft').replace('{count}', String(product.quantity))}
           </p>
         )}
       </div>

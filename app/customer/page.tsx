@@ -12,10 +12,12 @@ import ProductGrid from '@/components/customer/ProductGrid';
 import CartSidebar from '@/components/customer/CartSidebar';
 import BillModal from '@/components/shared/BillModal';
 import Toast from '@/components/shared/Toast';
+import { useLang } from '@/context/LanguageContext';
 
 export default function CustomerPage() {
   const { setCartOpen } = useApp();
   const { isDark } = useTheme();
+  const { t } = useLang();
   const [mounted, setMounted] = useState(false);
 
   // Maintain existing logic: Set mounted state
@@ -59,7 +61,7 @@ export default function CustomerPage() {
         <section className="space-y-4 pt-2">
           <div className="flex items-center justify-between">
             <h2 className={`text-xl sm:text-2xl font-display font-extrabold tracking-tight ${isDark ? 'text-gray-100' : 'text-amber-950'}`}>
-              Explore <span className={isDark ? 'text-indigo-400' : 'text-orange-500'}>Categories</span>
+              {t('exploreCategories').split(' ')[0]} <span className={isDark ? 'text-indigo-400' : 'text-orange-500'}>{t('exploreCategories').split(' ').slice(1).join(' ')}</span>
             </h2>
           </div>
 
@@ -74,7 +76,7 @@ export default function CustomerPage() {
         <section className="pt-6">
           <div className="flex items-center justify-between mb-8">
             <h3 className={`text-xl sm:text-2xl font-display font-extrabold tracking-tight ${isDark ? 'text-gray-100' : 'text-amber-950'}`}>
-              Fresh for you
+              {t('freshForYou')}
             </h3>
             {/* Crisp, modern divider line */}
             <div className={`h-px flex-grow mx-4 ${isDark ? 'bg-[#2d2450]/50' : 'bg-orange-200/50'}`} />

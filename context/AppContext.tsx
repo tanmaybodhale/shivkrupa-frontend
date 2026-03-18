@@ -33,6 +33,7 @@ interface AppState {
   signup: (name: string, phone: string, email: string, pass: string, address?: User['address']) => Promise<string | null>;
   login: (id: string, pass: string, role: 'customer' | 'shopkeeper') => Promise<string | null>;
   logout: () => void;
+  updateProfile: (name: string, address?: User['address']) => Promise<string | null>;
   updateAddress: (address: User['address']) => Promise<void>;
 
   addToCart: (product: Product) => void;
@@ -96,22 +97,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateAddress = async (address: User['address']) => {
-    if (!currentUser) return;
+  const updateProfile = async (name: string, address?: User['address']): Promise<string | null> => {
+    if (!currentUser) return 'Please login first';
     try {
-      const res = await fetch(`${API_URL}/auth/address`, {
+      const res = await fetch(`${API_URL}/auth/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid: currentUser.uid, address }),
+        body: JSON.stringify({ uid: currentUser.uid, name, address }),
       });
       const data = await res.json();
       if (data.success) {
         setCurrentUser(data.user);
         ls.set('sk_session', data.user);
+        return null;
       }
+      return data.message || 'Failed to update profile';
     } catch (error) {
-      console.error('Failed to update address:', error);
+      console.error('Failed to update profile:', error);
+      return 'Server error. Please try again.';
     }
+  };
+
+  const updateAddress = async (address: User['address']) => {
+    if (!currentUser) return;
+    await updateProfile(currentUser.name, address);
   };
 
   const login = async (id: string, pass: string, role: 'customer' | 'shopkeeper'): Promise<string | null> => {
@@ -264,7 +273,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       currentUser, cart, orders, toast, cartOpen,
-      signup, login, logout, updateAddress,
+      signup, login, logout, updateProfile, updateAddress,
       addToCart, changeQty, clearCart, cartSubtotal, deliveryCharge, cartTotal, setCartOpen,
       placeOrder, updateOrderStatus, refreshOrders, fetchOrders, setOrders, setCurrentUser,
       showToast,

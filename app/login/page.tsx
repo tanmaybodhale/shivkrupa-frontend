@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useLang } from '@/context/LanguageContext';
 import LocationPicker from '@/components/customer/LocationPicker';
 import { User } from '@/lib/types';
 
@@ -12,6 +13,7 @@ type Tab = 'login' | 'signup';
 export default function LoginPage() {
   const { login, signup, showToast } = useApp();
   const { isDark } = useTheme();
+  const { t } = useLang();
   const router = useRouter();
 
   const [tab, setTab] = useState<Tab>('login');
@@ -19,11 +21,13 @@ export default function LoginPage() {
 
   const [loginId, setLoginId] = useState('');
   const [loginPass, setLoginPass] = useState('');
+  const [loginErrors, setLoginErrors] = useState<{ id?: string; pass?: string }>({});
 
   const [signupName, setSignupName] = useState('');
   const [signupPhone, setSignupPhone] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPass, setSignupPass] = useState('');
+  const [signupErrors, setSignupErrors] = useState<{ name?: string; phone?: string; pass?: string }>({});
 
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [address, setAddress] = useState<{
@@ -43,16 +47,21 @@ export default function LoginPage() {
   });
 
   const handleLogin = async () => {
-    if (!loginId.trim() || !loginPass.trim()) {
-      showToast('❌ Please enter username and password');
+    const errors: { id?: string; pass?: string } = {};
+    if (!loginId.trim()) errors.id = t('mobileRequired');
+    if (!loginPass.trim()) errors.pass = t('passwordRequired');
+    if (Object.keys(errors).length > 0) {
+      setLoginErrors(errors);
       return;
     }
+    setLoginErrors({});
     setLoading(true);
     const role = (loginId === 'admin' || loginId === '9975636622') ? 'shopkeeper' : 'customer';
     const err = await login(loginId.trim(), loginPass.trim(), role);
     setLoading(false);
     if (err) {
-      showToast('❌ ' + err);
+      setLoginErrors({ pass: t('wrongCredentials') });
+      showToast('❌ ' + t('wrongCredentials'));
       return;
     }
 
@@ -66,14 +75,19 @@ export default function LoginPage() {
   };
 
   const handleSignup = async () => {
-    if (!signupName.trim() || !signupPhone.trim() || !signupPass.trim()) {
-      showToast('❌ Please fill all required fields');
+    const errors: { name?: string; phone?: string; pass?: string } = {};
+    if (!signupName.trim()) errors.name = t('nameRequired');
+    if (!signupPhone.trim()) {
+      errors.phone = t('mobileRequired');
+    } else if (!/^\d{10}$/.test(signupPhone.trim())) {
+      errors.phone = t('invalidMobile');
+    }
+    if (!signupPass.trim()) errors.pass = t('passwordRequired');
+    if (Object.keys(errors).length > 0) {
+      setSignupErrors(errors);
       return;
     }
-    if (!/^\d{10}$/.test(signupPhone.trim())) {
-      showToast('❌ Enter a valid 10-digit phone number');
-      return;
-    }
+    setSignupErrors({});
     setLoading(true);
     const err = await signup(
       signupName.trim(),
@@ -142,8 +156,8 @@ export default function LoginPage() {
 
         {tab === 'login' && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <Field label="Phone / Email" value={loginId} onChange={setLoginId} placeholder="Enter phone or email" />
-            <Field label="Password" value={loginPass} onChange={setLoginPass} placeholder="Enter password" type="password" />
+            <Field label="Phone / Email" value={loginId} onChange={(v) => { setLoginId(v); setLoginErrors(e => ({ ...e, id: undefined })); }} placeholder="Enter phone or email" error={loginErrors.id} />
+            <Field label="Password" value={loginPass} onChange={(v) => { setLoginPass(v); setLoginErrors(e => ({ ...e, pass: undefined })); }} placeholder="Enter password" type="password" error={loginErrors.pass} />
 
             <button
               onClick={handleLogin}
@@ -174,10 +188,10 @@ export default function LoginPage() {
 
         {tab === 'signup' && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <Field label="Full Name" value={signupName} onChange={setSignupName} placeholder="Your full name" />
-            <Field label="Phone Number" value={signupPhone} onChange={setSignupPhone} placeholder="10-digit phone number" type="tel" />
+            <Field label="Full Name" value={signupName} onChange={(v) => { setSignupName(v); setSignupErrors(e => ({ ...e, name: undefined })); }} placeholder="Your full name" error={signupErrors.name} />
+            <Field label="Phone Number" value={signupPhone} onChange={(v) => { setSignupPhone(v); setSignupErrors(e => ({ ...e, phone: undefined })); }} placeholder="10-digit phone number" type="tel" error={signupErrors.phone} />
             <Field label="Email (optional)" value={signupEmail} onChange={setSignupEmail} placeholder="your@email.com" type="email" />
-            <Field label="Password" value={signupPass} onChange={setSignupPass} placeholder="Create a password" type="password" />
+            <Field label="Password" value={signupPass} onChange={(v) => { setSignupPass(v); setSignupErrors(e => ({ ...e, pass: undefined })); }} placeholder="Create a password" type="password" error={signupErrors.pass} />
 
             <button
               type="button"
@@ -250,10 +264,10 @@ export default function LoginPage() {
 }
 
 function Field({
-  label, value, onChange, placeholder, type = 'text',
+  label, value, onChange, placeholder, type = 'text', error,
 }: {
   label: string; value: string; onChange: (v: string) => void;
-  placeholder: string; type?: string;
+  placeholder: string; type?: string; error?: string;
 }) {
   const { isDark } = useTheme();
   return (
@@ -266,7 +280,7 @@ function Field({
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className={`w-full px-4 py-3 rounded-xl border font-medium focus:outline-none focus:ring-4 transition-all ${isDark ? 'border-[#2d2450] bg-[#13102a] text-gray-200 placeholder-gray-600 focus:border-indigo-500 focus:ring-indigo-500/10 focus:bg-[#1a1535]' : 'border-orange-200 bg-orange-50/30 text-amber-950 placeholder-amber-900/30 focus:border-orange-500 focus:ring-orange-500/10 focus:bg-white'}`}
+        className={`w-full px-4 py-3 rounded-xl border font-medium focus:outline-none focus:ring-4 transition-all ${error ? 'border-red-400 ring-2 ring-red-400/20' : ''} ${isDark ? 'border-[#2d2450] bg-[#13102a] text-gray-200 placeholder-gray-600 focus:border-indigo-500 focus:ring-indigo-500/10 focus:bg-[#1a1535]' : 'border-orange-200 bg-orange-50/30 text-amber-950 placeholder-amber-900/30 focus:border-orange-500 focus:ring-orange-500/10 focus:bg-white'}`}
         onKeyDown={e => {
           if (e.key === 'Enter') {
             const button = e.currentTarget.closest('.animate-in')?.querySelector('button') as HTMLButtonElement;
@@ -274,6 +288,9 @@ function Field({
           }
         }}
       />
+      {error && (
+        <p className="mt-1 text-xs font-bold text-red-500">{error}</p>
+      )}
     </div>
   );
 }

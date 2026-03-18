@@ -83,45 +83,46 @@ export default function AdminPage() {
           </div>
 
           {/* Blinkit-Style Segmented Tabs */}
-          <div className={`inline-flex p-1.5 border rounded-2xl shadow-sm ${isDark ? 'bg-[#1a1535] border-[#2d2450]' : 'bg-white border-orange-100'}`}>
+          {/* Blinkit-Style Segmented Tabs */}
+          <div className={`grid grid-cols-2 md:flex p-1.5 border rounded-2xl shadow-sm gap-1 ${isDark ? 'bg-[#1a1535] border-[#2d2450]' : 'bg-white border-orange-100'}`}>
             <button
               onClick={() => setActiveTab('orders')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${activeTab === 'orders'
+              className={`flex justify-center items-center gap-2 px-3 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 ${activeTab === 'orders'
                 ? (isDark ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-900/30' : 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow-md shadow-orange-200')
                 : (isDark ? 'text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10' : 'text-gray-500 hover:text-orange-600 hover:bg-orange-50')
                 }`}
             >
-              <ClipboardList size={18} />
+              <ClipboardList size={16} className="sm:w-[18px] sm:h-[18px]" />
               Orders
             </button>
             <button
               onClick={() => setActiveTab('catalog')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${activeTab === 'catalog'
+              className={`flex justify-center items-center gap-2 px-3 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 ${activeTab === 'catalog'
                 ? (isDark ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-900/30' : 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow-md shadow-orange-200')
                 : (isDark ? 'text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10' : 'text-gray-500 hover:text-orange-600 hover:bg-orange-50')
                 }`}
             >
-              <Package size={18} />
+              <Package size={16} className="sm:w-[18px] sm:h-[18px]" />
               Catalog
             </button>
             <button
               onClick={() => setActiveTab('map')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${activeTab === 'map'
+              className={`flex justify-center items-center gap-2 px-3 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 ${activeTab === 'map'
                 ? (isDark ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-900/30' : 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow-md shadow-orange-200')
                 : (isDark ? 'text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10' : 'text-gray-500 hover:text-orange-600 hover:bg-orange-50')
                 }`}
             >
-              <Map size={18} />
+              <Map size={16} className="sm:w-[18px] sm:h-[18px]" />
               Map
             </button>
             <button
               onClick={() => setActiveTab('users')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${activeTab === 'users'
+              className={`flex justify-center items-center gap-2 px-3 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 ${activeTab === 'users'
                 ? (isDark ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-900/30' : 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow-md shadow-orange-200')
                 : (isDark ? 'text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10' : 'text-gray-500 hover:text-orange-600 hover:bg-orange-50')
                 }`}
             >
-              <Users size={18} />
+              <Users size={16} className="sm:w-[18px] sm:h-[18px]" />
               Users
             </button>
           </div>
@@ -391,13 +392,13 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                         type="text"
                         value={editForm.name || ''}
                         onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-                        className="w-full min-w-[140px] px-3 py-2 rounded-xl border border-orange-200 bg-orange-50/30 text-sm font-bold text-gray-800 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all"
+                        className={`w-full min-w-[140px] px-3 py-2 rounded-xl border text-sm font-bold focus:ring-2 outline-none transition-all ${isDark ? 'bg-[#1a1535] border-[#2d2450] text-gray-200 focus:bg-[#13102a] focus:ring-indigo-500/20 focus:border-indigo-500' : 'bg-orange-50/30 border-orange-200 text-gray-800 focus:bg-white focus:ring-orange-500/20 focus:border-orange-500'}`}
                         placeholder="Product name"
                       />
                       <textarea
                         value={editForm.description || ''}
                         onChange={e => setEditForm({ ...editForm, description: e.target.value })}
-                        className="w-full min-w-[140px] mt-2 px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-xs font-medium text-gray-600 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all resize-none"
+                        className={`w-full min-w-[140px] mt-2 px-3 py-2 rounded-xl border text-xs font-medium focus:ring-2 outline-none transition-all resize-none ${isDark ? 'bg-[#13102a] border-[#2d2450] text-gray-400 focus:bg-[#1a1535] focus:ring-indigo-500/20 focus:border-indigo-500' : 'bg-gray-50 border-gray-200 text-gray-600 focus:bg-white focus:ring-orange-500/20 focus:border-orange-500'}`}
                         placeholder="Description (optional)"
                         rows={2}
                       />
@@ -407,28 +408,28 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                         type="text"
                         value={editForm.category || ''}
                         onChange={e => setEditForm({ ...editForm, category: e.target.value })}
-                        className="w-28 px-3 py-2 rounded-xl border border-orange-200 bg-orange-50/30 text-sm font-medium text-gray-800 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all capitalize"
+                        className={`w-28 px-3 py-2 rounded-xl border text-sm font-medium focus:ring-2 outline-none transition-all capitalize ${isDark ? 'bg-[#1a1535] border-[#2d2450] text-gray-200 focus:bg-[#13102a] focus:ring-indigo-500/20 focus:border-indigo-500' : 'bg-orange-50/30 border-orange-200 text-gray-800 focus:bg-white focus:ring-orange-500/20 focus:border-orange-500'}`}
                       />
                     </td>
                     <td className="px-6 py-3">
                       <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-gray-400">₹</span>
+                          <span className={`text-xs font-bold ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>₹</span>
                           <input
                             type="number"
                             value={editForm.price || 0}
                             onChange={e => setEditForm({ ...editForm, price: Number(e.target.value) })}
-                            className="w-20 px-2 py-1.5 rounded-lg border border-orange-200 bg-orange-50/30 text-sm font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all"
+                            className={`w-20 px-2 py-1.5 rounded-lg border text-sm font-bold focus:ring-2 outline-none transition-all ${isDark ? 'bg-[#1a1535] border-[#2d2450] text-gray-200 focus:bg-[#13102a] focus:ring-indigo-500/20 focus:border-indigo-500' : 'bg-orange-50/30 border-orange-200 text-gray-900 focus:bg-white focus:ring-orange-500/20 focus:border-orange-500'}`}
                             title="Selling Price"
                           />
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-gray-400 line-through">₹</span>
+                          <span className={`text-xs font-bold line-through ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>₹</span>
                           <input
                             type="number"
                             value={editForm.mrp || 0}
                             onChange={e => setEditForm({ ...editForm, mrp: Number(e.target.value) })}
-                            className="w-20 px-2 py-1.5 rounded-lg border border-gray-200 bg-gray-50 text-xs font-medium text-gray-500 focus:bg-white focus:ring-2 focus:ring-gray-500/20 focus:border-gray-500 outline-none transition-all"
+                            className={`w-20 px-2 py-1.5 rounded-lg border text-xs font-medium focus:ring-2 outline-none transition-all ${isDark ? 'bg-[#13102a] border-[#2d2450] text-gray-400 focus:bg-[#1a1535] focus:ring-indigo-500/20 focus:border-indigo-500' : 'bg-gray-50 border-gray-200 text-gray-500 focus:bg-white focus:ring-gray-500/20 focus:border-gray-500'}`}
                             title="MRP"
                           />
                         </div>
@@ -439,7 +440,7 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                         type="text"
                         value={editForm.weight || ''}
                         onChange={e => setEditForm({ ...editForm, weight: e.target.value })}
-                        className="w-24 px-2 py-2 rounded-xl border border-orange-200 bg-orange-50/30 text-sm font-medium text-gray-800 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all"
+                        className={`w-24 px-2 py-2 rounded-xl border text-sm font-medium focus:ring-2 outline-none transition-all ${isDark ? 'bg-[#1a1535] border-[#2d2450] text-gray-200 focus:bg-[#13102a] focus:ring-indigo-500/20 focus:border-indigo-500' : 'bg-orange-50/30 border-orange-200 text-gray-800 focus:bg-white focus:ring-orange-500/20 focus:border-orange-500'}`}
                         placeholder="e.g. 200ml"
                       />
                     </td>
@@ -496,7 +497,7 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                   /* --- VIEW MODE ROW --- */
                   <>
                     <td className="px-6 py-4">
-                      <div className="w-14 h-14 rounded-xl bg-white border border-gray-100 shadow-sm flex items-center justify-center overflow-hidden">
+                      <div className={`w-14 h-14 rounded-xl border shadow-sm flex items-center justify-center overflow-hidden ${isDark ? 'bg-[#13102a] border-[#2d2450]' : 'bg-white border-gray-100'}`}>
                         {product.image?.startsWith('http') ? (
                           <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
                         ) : (
@@ -505,49 +506,49 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="font-bold text-gray-900 text-sm">{product.name}</div>
+                      <div className={`font-bold text-sm ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{product.name}</div>
                       {product.description && (
-                        <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-2">{product.description}</p>
+                        <p className={`text-[11px] mt-0.5 line-clamp-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{product.description}</p>
                       )}
                       {product.tag && (
-                        <span className="inline-block mt-1 px-2 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-black uppercase tracking-wider rounded-md">
+                        <span className={`inline-block mt-1 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-md ${isDark ? 'bg-indigo-500/20 text-indigo-400' : 'bg-orange-100 text-orange-700'}`}>
                           {product.tag}
                         </span>
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-lg capitalize">
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg capitalize ${isDark ? 'bg-[#13102a] text-gray-400' : 'bg-gray-100 text-gray-500'}`}>
                         {product.category}
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
-                        <span className="font-black text-gray-900 text-sm">₹{product.price}</span>
+                        <span className={`font-black text-sm ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>₹{product.price}</span>
                         {product.mrp > product.price && (
-                          <span className="text-[11px] font-semibold text-gray-400 line-through">₹{product.mrp}</span>
+                          <span className={`text-[11px] font-semibold line-through ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>₹{product.mrp}</span>
                         )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-xs font-semibold text-gray-500">
+                      <span className={`text-xs font-semibold ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
                         {product.weight || '-'}
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       {product.quantity === undefined || product.quantity === null ? (
-                        <div className="flex items-center text-gray-400" title="Unlimited Stock">
+                        <div className={`flex items-center ${isDark ? 'text-gray-600' : 'text-gray-400'}`} title="Unlimited Stock">
                           <InfinityIcon size={20} />
                         </div>
                       ) : (
-                        <span className={`font-bold text-sm ${product.quantity <= 3 ? 'text-red-500' : 'text-gray-700'}`}>
+                        <span className={`font-bold text-sm ${product.quantity <= 3 ? (isDark ? 'text-red-400' : 'text-red-500') : (isDark ? 'text-gray-300' : 'text-gray-700')}`}>
                           {product.quantity}
                         </span>
                       )}
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${product.inStock
-                        ? 'bg-green-50 text-green-700 border-green-200'
-                        : 'bg-red-50 text-red-700 border-red-200'
+                        ? (isDark ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-green-50 text-green-700 border-green-200')
+                        : (isDark ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-red-50 text-red-700 border-red-200')
                         }`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${product.inStock ? 'bg-green-500' : 'bg-red-500'}`} />
                         {product.inStock ? 'In Stock' : 'Out of Stock'}
@@ -557,14 +558,14 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                       <div className="flex items-center justify-end gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => handleEdit(product)}
-                          className="p-2 text-orange-500 bg-orange-50 hover:bg-orange-500 hover:text-white rounded-xl transition-colors"
+                          className={`p-2 rounded-xl transition-colors ${isDark ? 'text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white' : 'text-orange-500 bg-orange-50 hover:bg-orange-500 hover:text-white'}`}
                           title="Edit Product"
                         >
                           <Pencil size={16} strokeWidth={2.5} />
                         </button>
                         <button
                           onClick={() => product._id && handleDelete(product._id)}
-                          className="p-2 text-red-500 bg-red-50 hover:bg-red-500 hover:text-white rounded-xl transition-colors"
+                          className={`p-2 rounded-xl transition-colors ${isDark ? 'text-red-400 bg-red-500/10 hover:bg-red-500 hover:text-white' : 'text-red-500 bg-red-50 hover:bg-red-500 hover:text-white'}`}
                           title="Delete Product"
                         >
                           <Trash2 size={16} strokeWidth={2.5} />

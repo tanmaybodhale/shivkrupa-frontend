@@ -82,8 +82,8 @@ export default function HeroBanner() {
       </div>
 
       {/* Right Content: Ticket */}
-      <div className="relative z-10 hidden sm:flex shrink-0">
-        <div className={`rounded-xl p-8 text-center border-2 transform hover:-translate-y-1 transition-transform duration-300 w-64 ${isDark
+      <div className="relative z-10 flex shrink-0 w-full sm:w-auto justify-center mt-8 sm:mt-0">
+        <div className={`rounded-xl p-8 text-center border-2 transform hover:-translate-y-1 transition-transform duration-300 w-full max-w-[280px] sm:w-64 ${isDark
           ? 'bg-[#13102a] border-[#2d2450] shadow-[8px_8px_0px_0px_#6366f1]'
           : 'bg-[#fffbf5] border-orange-300 shadow-[8px_8px_0px_0px_#fb923c]'
           }`}>

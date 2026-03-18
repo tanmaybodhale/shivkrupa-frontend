@@ -52,41 +52,44 @@ export default function UsersManager({ showToast }: { showToast: (msg: string) =
 
   if (loading) {
     return (
-      <div className={`rounded-3xl border p-8 text-center ${isDark ? 'bg-[#1a1535] border-[#2d2450]' : 'bg-white border-orange-100'}`}>
-        <p className="text-gray-500 font-bold">Loading users...</p>
+      <div className={`rounded-[2rem] border p-12 text-center flex flex-col items-center justify-center ${isDark ? 'bg-[#1a1535] border-[#2d2450]' : 'bg-white border-orange-100/50'}`}>
+        <div className={`w-8 h-8 border-4 rounded-full animate-spin mb-4 ${isDark ? 'border-indigo-900 border-t-indigo-500' : 'border-orange-200 border-t-orange-500'}`} />
+        <p className={`font-bold ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Loading customers...</p>
       </div>
     );
   }
 
   return (
     <div className={`rounded-[2rem] border overflow-hidden ${isDark ? 'bg-[#1a1535] border-[#2d2450]' : 'bg-white border-orange-100/50'}`}>
-      <div className={`px-6 py-4 border-b flex items-center justify-between ${isDark ? 'border-[#2d2450] bg-[#13102a]/50' : 'border-gray-100 bg-orange-50/30'}`}>
+      <div className={`px-6 py-5 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${isDark ? 'border-[#2d2450] bg-[#13102a]/50' : 'border-orange-100 bg-orange-50/30'}`}>
         <div>
-          <h3 className={`font-black text-xl ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>Customers</h3>
-          <p className="text-xs text-gray-500 font-semibold">{users.length} customer accounts</p>
+          <h3 className={`font-black text-xl flex items-center gap-2 ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
+            <span className="text-2xl">👥</span> Customer Directory
+          </h3>
+          <p className={`text-sm font-medium mt-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+            Manage {users.length} registered customers
+          </p>
         </div>
         <button
           onClick={fetchUsers}
-          className={`px-3 py-1.5 text-xs font-black rounded-lg border ${isDark ? 'border-[#2d2450] text-indigo-300 bg-indigo-500/10' : 'border-orange-200 text-orange-600 bg-orange-50'}`}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all active:scale-95 ${isDark ? 'bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20' : 'bg-orange-100 text-orange-600 hover:bg-orange-200'}`}
         >
-          Refresh
+          🔄 Refresh
         </button>
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px]">
+        <table className="w-full text-left border-collapse min-w-[1000px]">
           <thead>
-            <tr className={`${isDark ? 'bg-[#13102a]/50' : 'bg-gray-50/80'}`}>
-              <th className="px-5 py-3 text-xs text-gray-400 font-black uppercase tracking-wider text-left">UID</th>
-              <th className="px-5 py-3 text-xs text-gray-400 font-black uppercase tracking-wider text-left">Name</th>
-              <th className="px-5 py-3 text-xs text-gray-400 font-black uppercase tracking-wider text-left">Phone</th>
-              <th className="px-5 py-3 text-xs text-gray-400 font-black uppercase tracking-wider text-left">Email</th>
-              <th className="px-5 py-3 text-xs text-gray-400 font-black uppercase tracking-wider text-left">Address</th>
-              <th className="px-5 py-3 text-xs text-gray-400 font-black uppercase tracking-wider text-left">Joined</th>
-              <th className="px-5 py-3 text-xs text-gray-400 font-black uppercase tracking-wider text-right">Action</th>
+            <tr className={`border-b ${isDark ? 'bg-[#13102a]/50 border-[#2d2450]' : 'bg-gray-50/80 border-gray-100'}`}>
+              <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Customer</th>
+              <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Contact</th>
+              <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Address</th>
+              <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Joined</th>
+              <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400 text-right">Action</th>
             </tr>
           </thead>
-          <tbody className={`${isDark ? 'divide-y divide-[#2d2450]' : 'divide-y divide-gray-100'}`}>
+          <tbody className={`divide-y ${isDark ? 'divide-[#2d2450]' : 'divide-gray-100'}`}>
             {users.map((user) => {
               const addressText = [
                 user.address?.street,
@@ -98,24 +101,63 @@ export default function UsersManager({ showToast }: { showToast: (msg: string) =
                 .filter(Boolean)
                 .join(', ');
               const joined = user.joinedAt ? new Date(user.joinedAt).toLocaleDateString() : '-';
+
               return (
-                <tr key={user.uid} className={isDark ? 'hover:bg-indigo-500/5' : 'hover:bg-orange-50/30'}>
-                  <td className="px-5 py-4 text-sm font-bold text-gray-500">{user.uid}</td>
-                  <td className="px-5 py-4 text-sm font-bold text-gray-900 dark:text-gray-100">{user.name}</td>
-                  <td className="px-5 py-4 text-sm font-semibold text-gray-700 dark:text-gray-300">{user.phone}</td>
-                  <td className="px-5 py-4 text-sm font-medium text-gray-600 dark:text-gray-400">{user.email || '-'}</td>
-                  <td className="px-5 py-4 text-sm font-medium text-gray-600 dark:text-gray-400 max-w-xs">
-                    <div className="line-clamp-2">{addressText || '-'}</div>
+                <tr key={user.uid} className={`transition-colors group ${isDark ? 'hover:bg-indigo-500/5' : 'hover:bg-orange-50/30'}`}>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg border shadow-sm ${isDark ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>
+                        {user.name?.[0]?.toUpperCase() || 'U'}
+                      </div>
+                      <div>
+                        <div className={`font-black text-sm ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{user.name}</div>
+                        <div className={`text-xs font-semibold mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                          ID: <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>{user.uid}</span>
+                        </div>
+                      </div>
+                    </div>
                   </td>
-                  <td className="px-5 py-4 text-sm font-medium text-gray-600 dark:text-gray-400">{joined}</td>
-                  <td className="px-5 py-4 text-right">
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col gap-1.5">
+                      <a href={`tel:${user.phone}`} className={`flex items-center gap-1.5 w-fit px-2 py-1 rounded-md text-xs font-bold transition-colors ${isDark ? 'bg-[#13102a] text-gray-300 hover:text-indigo-400 hover:bg-indigo-500/10 border border-[#2d2450]' : 'bg-white text-gray-700 hover:text-orange-600 hover:bg-orange-50 border border-gray-100'}`}>
+                        📞 {user.phone}
+                      </a>
+                      {user.email && user.email !== '-' && (
+                        <a href={`mailto:${user.email}`} className={`flex items-center gap-1.5 w-fit px-2 py-1 rounded-md text-xs font-bold transition-colors ${isDark ? 'bg-[#13102a] text-gray-300 hover:text-indigo-400 hover:bg-indigo-500/10 border border-[#2d2450]' : 'bg-white text-gray-700 hover:text-orange-600 hover:bg-orange-50 border border-gray-100'}`}>
+                          ✉️ {user.email}
+                        </a>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    {addressText ? (
+                      <div className="flex items-start gap-2 max-w-[250px]">
+                        <span className="text-sm">📍</span>
+                        <p className={`text-xs font-semibold line-clamp-2 leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{addressText}</p>
+                      </div>
+                    ) : (
+                      <span className={`text-xs font-semibold py-1 px-2.5 rounded-lg border ${isDark ? 'bg-[#13102a] text-gray-600 border-[#2d2450]' : 'bg-gray-50 text-gray-400 border-gray-100'}`}>
+                        No address provided
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`text-xs font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      {joined}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
                     <button
                       onClick={() => handleDelete(user.uid)}
                       disabled={deletingUid === user.uid}
-                      className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-bold rounded-lg bg-red-50 text-red-600 hover:bg-red-500 hover:text-white transition-colors disabled:opacity-60"
+                      className={`p-2.5 rounded-xl transition-all active:scale-95 ${isDark ? 'text-red-400 bg-red-500/10 hover:bg-red-500 hover:text-white disabled:opacity-50' : 'text-red-500 bg-red-50 hover:bg-red-500 hover:text-white disabled:opacity-50'}`}
+                      title="Remove Customer"
                     >
-                      <Trash2 size={14} />
-                      {deletingUid === user.uid ? 'Removing...' : 'Remove'}
+                      {deletingUid === user.uid ? (
+                        <div className="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Trash2 size={18} strokeWidth={2.5} />
+                      )}
                     </button>
                   </td>
                 </tr>

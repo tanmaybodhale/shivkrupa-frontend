@@ -24,9 +24,9 @@ export default function FiltersRow() {
   } as React.CSSProperties;
 
   return (
-    <div className="flex gap-3 mb-6 flex-wrap items-center">
+    <div className="flex flex-col md:flex-row gap-3 mb-6 w-full items-stretch md:items-center">
       {/* Search */}
-      <div className="relative flex-1 min-w-[200px]">
+      <div className="relative flex-1 w-full md:min-w-[200px]">
         <span className={`absolute left-4 top-1/2 -translate-y-1/2 text-lg ${isDark ? 'text-gray-500' : ''}`} style={{ color: isDark ? undefined : 'var(--muted)' }}>
           🔍
         </span>
@@ -49,31 +49,33 @@ export default function FiltersRow() {
         />
       </div>
 
-      <label className={`text-sm font-semibold ${isDark ? 'text-gray-400' : ''}`} style={{ color: isDark ? undefined : 'var(--muted)' }}>{t('sortBy')}:</label>
-      <select
-        value={sort}
-        onChange={e => setSort(e.target.value)}
-        style={selectStyle}
-      >
-        <option value="default">Featured</option>
-        <option value="price-asc">Price: Low to High</option>
-        <option value="price-desc">Price: High to Low</option>
-        <option value="new">Newest First</option>
-        <option value="name">Name A–Z</option>
-      </select>
+      <div className="flex gap-2 items-center flex-1 w-full flex-wrap sm:flex-nowrap">
+        <select
+          value={sort}
+          onChange={e => setSort(e.target.value)}
+          style={selectStyle}
+          className="flex-1 min-w-[120px]"
+        >
+          <option value="default">{t('sortBy')}...</option>
+          <option value="price-asc">Price: Low to High</option>
+          <option value="price-desc">Price: High to Low</option>
+          <option value="new">Newest First</option>
+          <option value="name">Name A–Z</option>
+        </select>
 
-      <label className={`text-sm font-semibold ${isDark ? 'text-gray-400' : ''}`} style={{ color: isDark ? undefined : 'var(--muted)' }}>{t('priceRange')}:</label>
-      <select
-        value={priceRange}
-        onChange={e => setPriceRange(e.target.value)}
-        style={selectStyle}
-      >
-        <option value="">All Prices</option>
-        <option value="0-50">Under ₹50</option>
-        <option value="50-100">₹50 – ₹100</option>
-        <option value="100-300">₹100 – ₹300</option>
-        <option value="300+">Above ₹300</option>
-      </select>
+        <select
+          value={priceRange}
+          onChange={e => setPriceRange(e.target.value)}
+          style={selectStyle}
+          className="flex-1 min-w-[120px]"
+        >
+          <option value="">{t('priceRange')}...</option>
+          <option value="0-50">Under ₹50</option>
+          <option value="50-100">₹50 – ₹100</option>
+          <option value="100-300">₹100 – ₹300</option>
+          <option value="300+">Above ₹300</option>
+        </select>
+      </div>
     </div>
   );
 }

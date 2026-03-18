@@ -26,9 +26,10 @@ const DEFAULT_CENTER: LatLngTuple = [18.5204, 73.8567];
 
 interface Props {
   usersWithLocation: UserLocation[];
+  isDark?: boolean;
 }
 
-export default function UsersMapInner({ usersWithLocation }: Props) {
+export default function UsersMapInner({ usersWithLocation, isDark }: Props) {
   const customIcon = L.icon({
     iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
     iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -40,15 +41,18 @@ export default function UsersMapInner({ usersWithLocation }: Props) {
   });
 
   return (
-    <div className="h-[500px] rounded-2xl overflow-hidden border border-gray-200">
+    <div className={`h-full w-full ${isDark ? 'map-dark' : ''}`}>
       <MapContainer
         center={DEFAULT_CENTER}
         zoom={12}
         style={{ height: '100%', width: '100%' }}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          key={isDark ? 'dark' : 'light'}
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          url={isDark
+            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+            : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
         />
         {usersWithLocation.map((user) => (
           <Marker

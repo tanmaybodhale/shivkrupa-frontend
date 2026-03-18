@@ -21,10 +21,7 @@ export default function StatsGrid() {
   ];
 
   return (
-    <div
-      className="grid gap-4 mb-8"
-      style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}
-    >
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-8">
       {stats.map(s => (
         <div
           key={s.label}

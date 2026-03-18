@@ -96,10 +96,7 @@ export default function ProductGrid() {
           <p className="text-sm mt-1">Try a different search or category.</p>
         </div>
       ) : (
-        <div
-          className="grid gap-5"
-          style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))' }}
-        >
+        <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-5">
           {filtered.map(p => <ProductCard key={p._id || p.id} product={p} />)}
         </div>
       )}

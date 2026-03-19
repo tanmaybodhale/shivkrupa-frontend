@@ -328,8 +328,8 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
         </button>
       </div>
 
-      {/* Responsive Table Container */}
-      <div className="overflow-x-auto">
+      {/* Responsive Table Container Desktop */}
+      <div className="hidden lg:block overflow-x-auto">
         <table className="w-full text-left border-collapse min-w-[900px]">
           <thead>
             <tr className={`border-b ${isDark ? 'bg-[#13102a]/50 border-[#2d2450]' : 'bg-gray-50/80 border-gray-100'}`}>
@@ -578,6 +578,183 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Card Layout */}
+      <div className="block lg:hidden divide-y divide-[#2d2450]/20">
+        {products.map(product => (
+          <div key={product._id} className={`p-4 transition-colors ${isDark ? 'hover:bg-indigo-500/5' : 'hover:bg-orange-50/30'}`}>
+            
+            {editingId === product._id ? (
+               /* Mobile Edit Mode Layout */
+               <div className="flex flex-col gap-4">
+                  <div className="flex items-start gap-4">
+                     <div className="shrink-0 relative">
+                        {/* Hidden file input bound to ref */}
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploading}
+                          className={`w-20 h-20 rounded-xl border-2 border-dashed flex items-center justify-center overflow-hidden transition-all ${isDark ? 'border-[#2d2450] bg-[#13102a] hover:border-indigo-500' : 'border-orange-200 bg-orange-50/30 hover:border-orange-400'}`}
+                        >
+                          {editForm.image?.startsWith('http') ? (
+                            <img src={editForm.image} alt="Preview" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="flex flex-col items-center gap-0.5">
+                              <Upload size={16} className={isDark ? 'text-indigo-400' : 'text-orange-400'} />
+                              <span className="text-[10px] font-bold text-gray-400">Upload</span>
+                            </div>
+                          )}
+                        </button>
+                     </div>
+                     <div className="flex-1 flex flex-col gap-2">
+                        <input
+                          type="text"
+                          value={editForm.name || ''}
+                          onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                          className={`w-full px-3 py-2 rounded-lg border text-sm font-bold outline-none ${isDark ? 'bg-[#1a1535] border-[#2d2450] text-gray-200' : 'bg-orange-50/30 border-orange-200 text-gray-800'}`}
+                          placeholder="Product name"
+                        />
+                        <input
+                          type="text"
+                          value={editForm.category || ''}
+                          onChange={e => setEditForm({ ...editForm, category: e.target.value })}
+                          className={`w-full px-3 py-2 rounded-lg border text-sm font-medium outline-none ${isDark ? 'bg-[#1a1535] border-[#2d2450] text-gray-200' : 'bg-orange-50/30 border-orange-200 text-gray-800'}`}
+                          placeholder="Category"
+                        />
+                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-gray-500">₹</span>
+                      <input
+                        type="number"
+                        value={editForm.price || 0}
+                        onChange={e => setEditForm({ ...editForm, price: Number(e.target.value) })}
+                        className={`w-full px-2 py-1.5 rounded-lg border text-sm font-bold outline-none ${isDark ? 'bg-[#1a1535] border-[#2d2450] text-gray-200' : 'bg-orange-50/30 border-orange-200 text-gray-900'}`}
+                        placeholder="Price"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold line-through text-gray-500">₹</span>
+                      <input
+                        type="number"
+                        value={editForm.mrp || 0}
+                        onChange={e => setEditForm({ ...editForm, mrp: Number(e.target.value) })}
+                        className={`w-full px-2 py-1.5 rounded-lg border text-xs font-medium outline-none ${isDark ? 'bg-[#13102a] border-[#2d2450] text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-500'}`}
+                        placeholder="MRP"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                     <input
+                        type="text"
+                        value={editForm.weight || ''}
+                        onChange={e => setEditForm({ ...editForm, weight: e.target.value })}
+                        className={`w-full px-2 py-1.5 rounded-lg border text-sm font-medium outline-none ${isDark ? 'bg-[#1a1535] border-[#2d2450] text-gray-200' : 'bg-orange-50/30 border-orange-200 text-gray-800'}`}
+                        placeholder="Weight (e.g. 1kg)"
+                     />
+                     <input
+                        type="number"
+                        value={editForm.quantity === undefined || editForm.quantity === null ? '' : editForm.quantity}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setEditForm({ ...editForm, quantity: val === '' ? null : Number(val) });
+                        }}
+                        className={`w-full px-2 py-1.5 rounded-lg border text-center text-sm font-bold outline-none ${isDark ? 'bg-[#1a1535] border-[#2d2450] text-gray-200' : 'bg-orange-50/30 border-orange-200 text-gray-800'}`}
+                        placeholder="Qty (∞)"
+                        min="1"
+                     />
+                  </div>
+
+                  <div className="flex items-center justify-between mt-2 pt-4 border-t border-gray-100 dark:border-[#2d2450]">
+                     <label className="flex items-center gap-2 cursor-pointer">
+                        <div className={`w-5 h-5 rounded flex items-center justify-center transition-colors border ${editForm.inStock ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300'}`}>
+                           <Check size={14} className={`text-white transition-opacity ${editForm.inStock ? 'opacity-100' : 'opacity-0'}`} />
+                        </div>
+                        <input
+                           type="checkbox"
+                           checked={editForm.inStock || false}
+                           onChange={e => setEditForm({ ...editForm, inStock: e.target.checked })}
+                           className="hidden"
+                        />
+                        <span className={`text-sm font-bold ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>In Stock</span>
+                     </label>
+
+                     <div className="flex items-center gap-2">
+                        <button
+                           onClick={handleCancel}
+                           className={`p-2 rounded-xl transition-colors shadow-sm ${isDark ? 'bg-gray-800 text-gray-400 hover:text-gray-200' : 'bg-gray-100 text-gray-500 hover:text-gray-700'}`}
+                        >
+                           <X size={18} strokeWidth={3} />
+                        </button>
+                        <button
+                           onClick={handleSave}
+                           className={`p-2 rounded-xl transition-colors shadow-sm ${isDark ? 'bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-white' : 'bg-green-100 text-green-700 hover:bg-green-500 hover:text-white'}`}
+                        >
+                           <Check size={18} strokeWidth={3} />
+                        </button>
+                     </div>
+                  </div>
+               </div>
+            ) : (
+               /* Mobile View Mode Layout */
+               <div className="flex gap-4">
+                  <div className={`w-20 h-20 shrink-0 rounded-xl border shadow-sm flex items-center justify-center overflow-hidden ${isDark ? 'bg-[#13102a] border-[#2d2450]' : 'bg-white border-gray-100'}`}>
+                    {product.image?.startsWith('http') ? (
+                      <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-3xl">{product.emoji || '📦'}</span>
+                    )}
+                  </div>
+                  
+                  <div className="flex-1 min-w-0 flex flex-col justify-between">
+                     <div className="flex justify-between items-start">
+                        <div className="truncate pr-2 max-w-[150px]">
+                           <h4 className={`font-black text-sm truncate ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{product.name}</h4>
+                           <span className={`text-[10px] font-semibold uppercase tracking-wider ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{product.category}</span>
+                        </div>
+                        <div className="flex flex-col items-end shrink-0">
+                           <span className={`font-black text-sm ${isDark ? 'text-indigo-400' : 'text-orange-600'}`}>₹{product.price}</span>
+                           {product.mrp > product.price && (
+                             <span className={`text-[10px] font-semibold line-through ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>₹{product.mrp}</span>
+                           )}
+                        </div>
+                     </div>
+
+                     <div className="flex flex-wrap items-center gap-2 mt-2">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${product.inStock ? (isDark ? 'bg-green-500/10 text-green-400' : 'bg-green-50 text-green-700') : (isDark ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-700')}`}>
+                           {product.inStock ? 'In Stock' : 'Out of Stock'}
+                        </span>
+                        {product.weight && (
+                           <span className={`text-[10px] font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{product.weight}</span>
+                        )}
+                        <span className={`text-[10px] font-bold flex items-center gap-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                           Qty: {product.quantity === null || product.quantity === undefined ? <InfinityIcon size={12} /> : product.quantity}
+                        </span>
+                     </div>
+                     
+                     <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-[#2d2450]">
+                        <button
+                          onClick={() => handleEdit(product)}
+                          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${isDark ? 'text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white' : 'text-orange-600 bg-orange-50 hover:bg-orange-500 hover:text-white'}`}
+                        >
+                          <Pencil size={12} strokeWidth={2.5} /> Edit
+                        </button>
+                        <button
+                          onClick={() => product._id && handleDelete(product._id)}
+                          className={`p-1.5 rounded-lg text-xs transition-colors ${isDark ? 'text-red-400 bg-red-500/10 hover:bg-red-500 hover:text-white' : 'text-red-500 bg-red-50 hover:bg-red-500 hover:text-white'}`}
+                        >
+                          <Trash2 size={14} strokeWidth={2.5} />
+                        </button>
+                     </div>
+                  </div>
+               </div>
+            )}
+          </div>
+        ))}
       </div>
 
       {products.length === 0 && (

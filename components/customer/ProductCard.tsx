@@ -1,10 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import { Product } from '@/lib/types';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useLang } from '@/context/LanguageContext';
 import { Plus, Minus } from 'lucide-react';
+import ProductDetailModal from '@/components/customer/ProductDetailModal';
 
 interface Props { product: Product; }
 
@@ -12,6 +14,7 @@ export default function ProductCard({ product }: Props) {
   const { cart, addToCart, changeQty, showToast } = useApp();
   const { isDark } = useTheme();
   const { t } = useLang();
+  const [detailOpen, setDetailOpen] = useState(false);
 
   // Used for finding the item in the cart (keeps your original logic)
   const numericId = product._id ? parseInt(product._id.slice(-8), 16) : product.id;
@@ -79,15 +82,16 @@ export default function ProductCard({ product }: Props) {
         </div>
       )}
 
-      {/* Image Section */}
+      {/* Image Section — clickable to open detail */}
       <div
-        className="w-full flex items-center justify-center text-6xl"
+        className="w-full flex items-center justify-center text-6xl cursor-pointer"
         style={{
           height: 180,
           background: isDark
             ? 'linear-gradient(135deg, #13102a, #1a1535)'
             : 'linear-gradient(135deg, #fdf6e3, #fff8e7)'
         }}
+        onClick={() => setDetailOpen(true)}
       >
         {hasImage ? (
           <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
@@ -98,7 +102,10 @@ export default function ProductCard({ product }: Props) {
 
       {/* Content Section */}
       <div className="p-3 pt-2 flex flex-col flex-1">
-        <h4 className={`text-[13px] font-bold leading-snug line-clamp-2 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
+        <h4
+          className={`text-[13px] font-bold leading-snug line-clamp-2 cursor-pointer hover:underline decoration-dotted underline-offset-2 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}
+          onClick={() => setDetailOpen(true)}
+        >
           {product.name}
         </h4>
         <p className={`text-[11px] font-medium mt-1 capitalize ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
@@ -138,8 +145,11 @@ export default function ProductCard({ product }: Props) {
                 {t('outOfStock')}
               </button>
             ) : inCart && cartItem ? (
-              <div className={`w-full h-full flex items-center justify-between text-white rounded-lg shadow-sm overflow-hidden ${isDark ? 'bg-indigo-600 shadow-indigo-900/20' : 'bg-orange-500 shadow-orange-200'
-                }`}>
+              <div
+                className={`w-full h-full flex items-center justify-between text-white rounded-lg shadow-sm overflow-hidden ${isDark ? 'bg-indigo-600 shadow-indigo-900/20' : 'bg-orange-500 shadow-orange-200'
+                  }`}
+                onClick={e => e.stopPropagation()}
+              >
                 <button
                   onClick={handleDecrease}
                   className="w-7 h-full flex items-center justify-center hover:bg-black/10 transition-colors active:scale-95"
@@ -158,7 +168,7 @@ export default function ProductCard({ product }: Props) {
               </div>
             ) : (
               <button
-                onClick={handleAdd}
+                onClick={e => { e.stopPropagation(); handleAdd(); }}
                 className={`w-full h-full rounded-lg text-xs font-black border transition-colors shadow-sm active:scale-95 uppercase tracking-wide ${isDark
                   ? 'text-indigo-400 bg-indigo-500/10 border-indigo-500/30 hover:bg-indigo-500/20 hover:border-indigo-400/50'
                   : 'text-orange-600 bg-orange-50 border-orange-200 hover:bg-orange-100 hover:border-orange-400'
@@ -177,6 +187,11 @@ export default function ProductCard({ product }: Props) {
           </p>
         )}
       </div>
+
+      {/* Product Detail Modal */}
+      {detailOpen && (
+        <ProductDetailModal product={product} onClose={() => setDetailOpen(false)} />
+      )}
     </div>
   );
 }

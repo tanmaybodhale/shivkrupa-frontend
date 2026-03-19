@@ -78,7 +78,8 @@ export default function UsersManager({ showToast }: { showToast: (msg: string) =
         </button>
       </div>
 
-      <div className="overflow-x-auto">
+      {/* Desktop View */}
+      <div className="hidden lg:block overflow-x-auto">
         <table className="w-full text-left border-collapse min-w-[1000px]">
           <thead>
             <tr className={`border-b ${isDark ? 'bg-[#13102a]/50 border-[#2d2450]' : 'bg-gray-50/80 border-gray-100'}`}>
@@ -97,9 +98,7 @@ export default function UsersManager({ showToast }: { showToast: (msg: string) =
                 user.address?.city,
                 user.address?.state,
                 user.address?.pincode,
-              ]
-                .filter(Boolean)
-                .join(', ');
+              ].filter(Boolean).join(', ');
               const joined = user.joinedAt ? new Date(user.joinedAt).toLocaleDateString() : '-';
 
               return (
@@ -165,6 +164,72 @@ export default function UsersManager({ showToast }: { showToast: (msg: string) =
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile View */}
+      <div className="block lg:hidden divide-y divide-[#2d2450]/20">
+        {users.map((user) => {
+          const addressText = [
+            user.address?.street,
+            user.address?.area,
+            user.address?.city,
+            user.address?.state,
+            user.address?.pincode,
+          ].filter(Boolean).join(', ');
+          const joined = user.joinedAt ? new Date(user.joinedAt).toLocaleDateString() : '-';
+
+          return (
+            <div key={user.uid} className={`p-4 sm:p-5 flex flex-col gap-4 transition-colors ${isDark ? 'hover:bg-indigo-500/5' : 'hover:bg-orange-50/30'}`}>
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg border shadow-sm shrink-0 ${isDark ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>
+                    {user.name?.[0]?.toUpperCase() || 'U'}
+                  </div>
+                  <div>
+                    <h4 className={`font-black text-sm sm:text-base ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{user.name}</h4>
+                    <p className={`text-xs font-mono mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>ID: {user.uid}</p>
+                    <p className={`text-xs font-bold mt-0.5 ${isDark ? 'text-indigo-400' : 'text-orange-500'}`}>Joined: {joined}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleDelete(user.uid)}
+                  disabled={deletingUid === user.uid}
+                  className={`p-2 rounded-xl transition-all active:scale-95 shrink-0 ${isDark ? 'text-red-400 bg-red-500/10 hover:bg-red-500 hover:text-white disabled:opacity-50' : 'text-red-500 bg-red-50 hover:bg-red-500 hover:text-white disabled:opacity-50'}`}
+                >
+                  {deletingUid === user.uid ? (
+                    <div className="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Trash2 size={16} strokeWidth={2.5} />
+                  )}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <a href={`tel:${user.phone}`} className={`flex items-center justify-center gap-1.5 px-2 py-2 rounded-xl text-[11px] font-bold transition-colors ${isDark ? 'bg-[#13102a] text-gray-300 hover:text-indigo-400 border border-[#2d2450]' : 'bg-gray-50 text-gray-700 border border-gray-100'}`}>
+                  📞 {user.phone}
+                </a>
+                {user.email && user.email !== '-' && (
+                  <a href={`mailto:${user.email}`} className={`flex items-center justify-center gap-1.5 px-2 py-2 rounded-xl text-[11px] font-bold transition-colors ${isDark ? 'bg-[#13102a] text-gray-300 hover:text-indigo-400 border border-[#2d2450]' : 'bg-gray-50 text-gray-700 border border-gray-100'}`}>
+                    ✉️ Email
+                  </a>
+                )}
+              </div>
+
+              {addressText ? (
+                <div className={`p-3 rounded-xl border ${isDark ? 'bg-[#13102a] border-[#2d2450]' : 'bg-gray-50 border-gray-100'}`}>
+                  <div className="flex items-start gap-2">
+                    <span className="text-sm shrink-0">📍</span>
+                    <p className={`text-[11px] font-medium leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{addressText}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className={`p-2 rounded-xl border text-center ${isDark ? 'bg-[#13102a] border-[#2d2450]' : 'bg-gray-50 border-gray-100'}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>No Address</span>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {users.length === 0 && (

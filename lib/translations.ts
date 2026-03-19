@@ -82,7 +82,7 @@ const translations: Record<Language, TranslationKeys> = {
         dashboard: 'Dashboard',
         hi: 'Hi',
 
-        heroTagline: "Pune's Favourite Store",
+        heroTagline: "Jalna's Favourite Store",
         heroTitle1: 'Everything You Need,',
         heroTitle2: 'One Place.',
         heroDesc: 'Stationery, snacks, gifts, jewellery, cutlery & more — delivered instantly or pick up. Shop fresh, shop local.',
@@ -139,7 +139,7 @@ const translations: Record<Language, TranslationKeys> = {
         dashboard: 'डैशबोर्ड',
         hi: 'नमस्ते',
 
-        heroTagline: 'पुणे का पसंदीदा स्टोर',
+        heroTagline: 'जालना का पसंदीदा स्टोर',
         heroTitle1: 'सब कुछ जो आपको चाहिए,',
         heroTitle2: 'एक जगह।',
         heroDesc: 'स्टेशनरी, स्नैक्स, गिफ्ट्स, ज्वेलरी, कटलरी और भी बहुत कुछ — तुरंत डिलीवरी या पिकअप करें।',
@@ -196,7 +196,7 @@ const translations: Record<Language, TranslationKeys> = {
         dashboard: 'डॅशबोर्ड',
         hi: 'नमस्कार',
 
-        heroTagline: 'पुण्याचे आवडते दुकान',
+        heroTagline: 'जालन्याचे आवडते दुकान',
         heroTitle1: 'तुम्हाला हवे ते सगळे,',
         heroTitle2: 'एकाच ठिकाणी.',
         heroDesc: 'स्टेशनरी, स्नॅक्स, भेटवस्तू, दागिने, भांडी आणि बरेच काही — लगेच डिलिव्हरी किंवा पिकअप करा.',

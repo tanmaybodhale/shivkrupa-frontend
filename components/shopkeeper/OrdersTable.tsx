@@ -196,72 +196,116 @@ export default function OrdersTable() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[1000px]">
-              <thead>
-                <tr className={`border-b ${isDark ? 'bg-[#13102a]/50 border-[#2d2450]' : 'bg-gray-50/80 border-gray-100'}`}>
-                  <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Order ID</th>
-                  <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Customer</th>
-                  <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Items</th>
-                  <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Amount</th>
-                  <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Delivery</th>
-                  <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Time</th>
-                  <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Status</th>
-                  <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className={`divide-y ${isDark ? 'divide-[#2d2450]' : 'divide-gray-100'}`}>
-                {filteredOrders.map((order) => (
-                  <tr key={order.orderId} onClick={() => setSelectedOrder(order)}
-                    className={`transition-colors cursor-pointer group ${isDark ? 'hover:bg-indigo-500/5' : 'hover:bg-orange-50/30'}`}>
-                    <td className="px-6 py-4">
-                      <span className={`text-[11px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md border ${isDark ? 'bg-indigo-900/30 text-indigo-300 border-indigo-500/30' : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
-                        {order.orderId}
+          <>
+            {/* Desktop View */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[1000px]">
+                <thead>
+                  <tr className={`border-b ${isDark ? 'bg-[#13102a]/50 border-[#2d2450]' : 'bg-gray-50/80 border-gray-100'}`}>
+                    <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Order ID</th>
+                    <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Customer</th>
+                    <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Items</th>
+                    <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Amount</th>
+                    <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Delivery</th>
+                    <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Time</th>
+                    <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Status</th>
+                    <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${isDark ? 'divide-[#2d2450]' : 'divide-gray-100'}`}>
+                  {filteredOrders.map((order) => (
+                    <tr key={order.orderId} onClick={() => setSelectedOrder(order)}
+                      className={`transition-colors cursor-pointer group ${isDark ? 'hover:bg-indigo-500/5' : 'hover:bg-orange-50/30'}`}>
+                      <td className="px-6 py-4">
+                        <span className={`text-[11px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md border ${isDark ? 'bg-indigo-900/30 text-indigo-300 border-indigo-500/30' : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                          {order.orderId}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className={`font-bold text-sm ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{order.name}</div>
+                        <div className="text-xs font-semibold text-gray-400 mt-0.5">{order.phone}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`text-xs font-bold px-2 py-1 rounded-lg ${isDark ? 'bg-indigo-900/30 text-indigo-300' : 'bg-gray-100 text-gray-600'}`}>
+                          {order.items.length} item{order.items.length > 1 ? 's' : ''}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`text-sm font-black ${isDark ? 'text-indigo-400' : 'text-gray-900'}`}>₹{order.total}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {order.delivery === 0 ? (
+                          <span className={`text-xs font-black px-2 py-1 rounded-md ${isDark ? 'text-emerald-400 bg-emerald-500/10' : 'text-emerald-600 bg-emerald-50'}`}>FREE</span>
+                        ) : (
+                          <span className="text-xs font-bold text-gray-600">₹{order.delivery}</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-[11px] font-bold text-gray-400">{order.timeStr}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${getStatusStyle(order.status)}`}>
+                          {order.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setSelectedOrder(order); }}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm ${isDark
+                            ? 'text-indigo-400 bg-indigo-500/10 border border-indigo-500/30 group-hover:bg-indigo-500 group-hover:text-white'
+                            : 'text-orange-600 bg-orange-50 border border-orange-200 group-hover:bg-orange-500 group-hover:text-white'
+                            }`}
+                        >
+                          <Eye size={14} strokeWidth={2.5} /> View
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile View */}
+            <div className="block lg:hidden divide-y divide-[#2d2450]/20">
+              {filteredOrders.map((order) => (
+                <div 
+                  key={order.orderId} 
+                  onClick={() => setSelectedOrder(order)}
+                  className={`p-4 flex flex-col gap-3 transition-colors cursor-pointer ${isDark ? 'hover:bg-indigo-500/5' : 'hover:bg-orange-50/30'}`}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex flex-col gap-1">
+                      <span className={`w-fit text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${isDark ? 'bg-indigo-900/30 text-indigo-300 border-indigo-500/30' : 'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                        #{order.orderId}
                       </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className={`font-bold text-sm ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{order.name}</div>
-                      <div className="text-xs font-semibold text-gray-400 mt-0.5">{order.phone}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`text-xs font-bold px-2 py-1 rounded-lg ${isDark ? 'bg-indigo-900/30 text-indigo-300' : 'bg-gray-100 text-gray-600'}`}>
-                        {order.items.length} item{order.items.length > 1 ? 's' : ''}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`text-sm font-black ${isDark ? 'text-indigo-400' : 'text-gray-900'}`}>₹{order.total}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {order.delivery === 0 ? (
-                        <span className={`text-xs font-black px-2 py-1 rounded-md ${isDark ? 'text-emerald-400 bg-emerald-500/10' : 'text-emerald-600 bg-emerald-50'}`}>FREE</span>
-                      ) : (
-                        <span className="text-xs font-bold text-gray-600">₹{order.delivery}</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-[11px] font-bold text-gray-400">{order.timeStr}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${getStatusStyle(order.status)}`}>
+                      <h4 className={`font-black text-sm mt-1 ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{order.name}</h4>
+                    </div>
+                    <div className="flex flex-col items-end gap-1.5">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${getStatusStyle(order.status)}`}>
                         {order.status}
                       </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setSelectedOrder(order); }}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm ${isDark
-                          ? 'text-indigo-400 bg-indigo-500/10 border border-indigo-500/30 group-hover:bg-indigo-500 group-hover:text-white'
-                          : 'text-orange-600 bg-orange-50 border border-orange-200 group-hover:bg-orange-500 group-hover:text-white'
-                          }`}
-                      >
-                        <Eye size={14} strokeWidth={2.5} /> View
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      <span className={`text-sm font-black ${isDark ? 'text-indigo-400' : 'text-orange-600'}`}>₹{order.total}</span>
+                    </div>
+                  </div>
+
+                  <div className={`grid grid-cols-2 gap-2 mt-2 pt-3 border-t ${isDark ? 'border-[#2d2450]/50' : 'border-gray-100'}`}>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] uppercase font-bold text-gray-500">Items:</span>
+                      <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${isDark ? 'bg-indigo-900/30 text-indigo-300' : 'bg-gray-100 text-gray-600'}`}>
+                        {order.items.length}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 justify-end">
+                      <span className="text-[10px] uppercase font-bold text-gray-500">Date:</span>
+                      <span className={`text-[11px] font-bold ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                        {order.timeStr.split(',')[0]}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </section>
 

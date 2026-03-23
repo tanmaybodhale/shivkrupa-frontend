@@ -36,8 +36,8 @@ export default function ProductGrid() {
 
   const filtered = useMemo(() => {
     let list = products.filter(p => {
-      const productCategory = (p.category || p.cat || '').toLowerCase();
-      const activeCat = activeCategory.toLowerCase();
+      const productCategory = (p.category || p.cat || '').trim().toLowerCase();
+      const activeCat = activeCategory.trim().toLowerCase();
       const matchCat = activeCategory === 'all' || productCategory === activeCat;
       const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
         productCategory.includes(search.toLowerCase());

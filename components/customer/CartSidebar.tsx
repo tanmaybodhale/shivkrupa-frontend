@@ -61,6 +61,14 @@ export default function CartSidebar() {
   const handleCheckout = async () => {
     if (cart.length === 0) { showToast('❌ Cart is empty!'); return; }
 
+    const hasAddress = deliveryAddress.street.trim() && deliveryAddress.area.trim() && 
+      deliveryAddress.city.trim() && deliveryAddress.state.trim() && deliveryAddress.pincode.trim();
+    if (!hasAddress) {
+      showToast('❌ Please add delivery address!');
+      setShowAddressForm(true);
+      return;
+    }
+
     if (!currentUser) {
       sessionStorage.setItem('pending_checkout', 'true');
       showToast('❌ Please login to place order');

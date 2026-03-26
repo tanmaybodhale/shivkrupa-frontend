@@ -1,13 +1,51 @@
 'use client';
 
+import { useState, useEffect, useMemo } from 'react';
 import { useProductFilter } from './useProductFilter';
 import { useTheme } from '@/context/ThemeContext';
 import { useLang } from '@/context/LanguageContext';
+import { Product } from '@/lib/types';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export default function FiltersRow() {
-  const { sort, priceRange, search, setSort, setPriceRange, setSearch } = useProductFilter();
+  const { sort, priceRange, search, activeCategory, activeBrand, setSort, setPriceRange, setSearch, setActiveBrand } = useProductFilter();
   const { isDark } = useTheme();
   const { t } = useLang();
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await fetch(`${API_URL}/catalog`);
+        const data = await res.json();
+        if (data.success && data.products) {
+          setAllProducts(data.products);
+        }
+      } catch {
+        // silently fail
+      }
+    };
+    fetchProducts();
+  }, []);
+
+  // Brands scoped to the active category
+  const brands = useMemo(() => {
+    const source = activeCategory === 'all'
+      ? allProducts
+      : allProducts.filter(p => (p.category || '').trim().toLowerCase() === activeCategory.toLowerCase());
+
+    return [...new Set(
+      source.map(p => (p.brand || '').trim()).filter(Boolean)
+    )] as string[];
+  }, [allProducts, activeCategory]);
+
+  // When category changes, reset brand if current brand is not in new list
+  useEffect(() => {
+    if (activeBrand !== 'all' && !brands.map(b => b.toLowerCase()).includes(activeBrand)) {
+      setActiveBrand('all');
+    }
+  }, [brands, activeBrand, setActiveBrand]);
 
   const selectStyle = {
     padding: '9px 14px',
@@ -35,8 +73,7 @@ export default function FiltersRow() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder={t('search')}
-          className={`w-full pl-11 pr-4 py-3 rounded-xl text-sm outline-none transition-all ${isDark ? 'text-gray-200 placeholder-gray-600' : ''
-            }`}
+          className={`w-full pl-11 pr-4 py-3 rounded-xl text-sm outline-none transition-all ${isDark ? 'text-gray-200 placeholder-gray-600' : ''}`}
           style={{
             border: isDark ? '2px solid #2d2450' : '2px solid #e0e0e0',
             background: isDark ? '#1a1535' : '#fff',
@@ -75,6 +112,23 @@ export default function FiltersRow() {
           <option value="100-300">₹100 – ₹300</option>
           <option value="300+">Above ₹300</option>
         </select>
+
+        {/* Brand filter — only shown when brands exist for the active category */}
+        {brands.length > 0 && (
+          <select
+            value={activeBrand}
+            onChange={e => setActiveBrand(e.target.value)}
+            style={selectStyle}
+            className="flex-1 min-w-[120px]"
+          >
+            <option value="all">
+              {activeCategory === 'all' ? 'All Brands' : `All ${activeCategory.charAt(0).toUpperCase() + activeCategory.slice(1)} Brands`}
+            </option>
+            {brands.map(b => (
+              <option key={b} value={b.toLowerCase()}>{b}</option>
+            ))}
+          </select>
+        )}
       </div>
     </div>
   );

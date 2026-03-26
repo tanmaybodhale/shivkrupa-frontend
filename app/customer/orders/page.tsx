@@ -15,11 +15,87 @@ import {
   ShoppingBag,
   CreditCard,
   Banknote,
-  Truck
+  Truck,
+  MapPin,
 } from 'lucide-react';
 import { useLang } from '@/context/LanguageContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
+// Order progress config
+const ORDER_STEPS = [
+  { key: 'pending',    label: 'Placed',      percent: 25, icon: '📦' },
+  { key: 'confirmed', label: 'Confirmed',    percent: 50, icon: '✅' },
+  { key: 'dispatched', label: 'On the Way', percent: 75, icon: '🚚' },
+  { key: 'delivered', label: 'Delivered',    percent: 100, icon: '🏠' },
+];
+
+function getProgress(status: string): number {
+  if (status === 'cancelled') return 0;
+  const step = ORDER_STEPS.find(s => s.key === status);
+  return step ? step.percent : 25;
+}
+
+function OrderProgressBar({ status, isDark }: { status: string; isDark: boolean }) {
+  const progress = getProgress(status);
+  const isCancelled = status === 'cancelled';
+
+  if (isCancelled) {
+    return (
+      <div className={`mt-4 mb-1 px-1`}>
+        <div className={`flex items-center gap-2 px-3 py-2 rounded-xl ${isDark ? 'bg-red-500/10' : 'bg-red-50'}`}>
+          <XCircle size={16} className="text-red-500" />
+          <span className="text-xs font-bold text-red-500">Order Cancelled</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4 mb-1 px-1">
+      {/* Progress bar track */}
+      <div className={`relative h-2 rounded-full overflow-hidden ${isDark ? 'bg-[#2d2450]' : 'bg-gray-100'}`}>
+        <div
+          className={`h-full rounded-full transition-all duration-700 ${isDark ? 'bg-gradient-to-r from-indigo-500 to-purple-500' : 'bg-gradient-to-r from-orange-400 to-yellow-400'}`}
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
+      {/* Steps */}
+      <div className="flex justify-between mt-2">
+        {ORDER_STEPS.map((step, idx) => {
+          const stepPercent = step.percent;
+          const isCompleted = progress >= stepPercent;
+          const isActive = progress >= stepPercent && (idx === ORDER_STEPS.length - 1 || progress < ORDER_STEPS[idx + 1].percent);
+
+          return (
+            <div key={step.key} className="flex flex-col items-center gap-0.5 text-center" style={{ width: `${100 / ORDER_STEPS.length}%` }}>
+              <span className={`text-base transition-all ${isCompleted ? 'opacity-100 scale-110' : 'opacity-30 scale-90'}`}>
+                {step.icon}
+              </span>
+              <span className={`text-[9px] font-bold leading-tight ${
+                isActive
+                  ? (isDark ? 'text-indigo-400' : 'text-orange-600')
+                  : isCompleted
+                    ? (isDark ? 'text-gray-300' : 'text-gray-700')
+                    : (isDark ? 'text-gray-600' : 'text-gray-400')
+              }`}>
+                {step.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Percentage badge */}
+      <div className="flex justify-end mt-1">
+        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${isDark ? 'bg-indigo-500/20 text-indigo-400' : 'bg-orange-100 text-orange-600'}`}>
+          {progress}%
+        </span>
+      </div>
+    </div>
+  );
+}
 
 export default function CustomerOrdersPage() {
   const { currentUser, orders, fetchOrders, showToast } = useApp();
@@ -58,7 +134,6 @@ export default function CustomerOrdersPage() {
 
   if (!currentUser || currentUser.role !== 'customer') return null;
 
-  // Enhanced status configurations for Blinkit-style badges
   const getStatusConfig = (status: string) => {
     switch (status.toLowerCase()) {
       case 'pending':
@@ -96,7 +171,6 @@ export default function CustomerOrdersPage() {
     <div className={`min-h-screen transition-colors duration-300 ${isDark ? 'bg-[#0f0d1a]' : 'bg-slate-50/50'}`}>
       <Navbar />
 
-      {/* Container - constrained width for that app-like feel on desktop */}
       <div className="max-w-screen-md mx-auto px-4 pb-24 pt-6">
 
         {/* Header */}
@@ -108,9 +182,16 @@ export default function CustomerOrdersPage() {
           >
             <ChevronLeft size={24} />
           </button>
-          <h2 className={`text-2xl font-black tracking-tight ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
-            {t('myOrders')}
-          </h2>
+          <div>
+            <h2 className={`text-2xl font-black tracking-tight ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
+              {t('myOrders')}
+            </h2>
+            {orders.length > 0 && (
+              <p className={`text-xs font-medium mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                {orders.length} order{orders.length !== 1 ? 's' : ''} total
+              </p>
+            )}
+          </div>
         </div>
 
         {orders.length === 0 ? (
@@ -121,7 +202,7 @@ export default function CustomerOrdersPage() {
             </div>
             <h4 className={`text-xl font-bold mb-2 ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>{t('noOrders')}</h4>
             <p className={`text-sm mb-8 max-w-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-              Looks like you haven't placed any orders. Start filling up your basket!
+              Looks like you haven&apos;t placed any orders. Start filling up your basket!
             </p>
             <button
               onClick={() => router.push('/customer')}
@@ -151,6 +232,11 @@ export default function CustomerOrdersPage() {
                       {status.icon}
                       <span className="capitalize">{order.status}</span>
                     </div>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className={`px-5 pt-3 pb-2 border-b ${isDark ? 'border-[#2d2450]' : 'border-gray-100'}`}>
+                    <OrderProgressBar status={order.status} isDark={isDark} />
                   </div>
 
                   {/* Card Body (Items) */}
@@ -183,6 +269,16 @@ export default function CustomerOrdersPage() {
                       ))}
                     </div>
                   </div>
+
+                  {/* Delivery Address */}
+                  {order.deliveryAddress && (order.deliveryAddress.street || order.deliveryAddress.area) && (
+                    <div className={`px-5 py-3 border-t flex items-start gap-2 ${isDark ? 'border-[#2d2450]' : 'border-gray-100'}`}>
+                      <MapPin size={14} className={`mt-0.5 shrink-0 ${isDark ? 'text-indigo-400' : 'text-orange-500'}`} />
+                      <span className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {[order.deliveryAddress.street, order.deliveryAddress.area, order.deliveryAddress.city].filter(Boolean).join(', ')}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Card Footer */}
                   <div className={`px-5 py-4 flex items-center justify-between border-t ${isDark ? 'bg-[#13102a]/50 border-[#2d2450]' : 'bg-gray-50 border-gray-100'}`}>

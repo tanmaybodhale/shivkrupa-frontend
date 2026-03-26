@@ -4,7 +4,7 @@ import React, {
   createContext, useContext, useState,
   useEffect, useCallback, ReactNode,
 } from 'react';
-import { User, CartItem, Order, Product } from '@/lib/types';
+import { User, CartItem, Order, Product, Address } from '@/lib/types';
 import {
   FREE_DELIVERY_THRESHOLD, DELIVERY_CHARGE,
 } from '@/lib/data';
@@ -35,6 +35,8 @@ interface AppState {
   logout: () => void;
   updateProfile: (name: string, address?: User['address']) => Promise<string | null>;
   updateAddress: (address: User['address']) => Promise<void>;
+  saveAddress: (address: Address, index?: number) => Promise<string | null>;
+  deleteAddress: (index: number) => Promise<string | null>;
 
   addToCart: (product: Product) => void;
   changeQty: (productId: string, delta: number) => void;
@@ -121,6 +123,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateAddress = async (address: User['address']) => {
     if (!currentUser) return;
     await updateProfile(currentUser.name, address);
+  };
+
+  const saveAddress = async (address: Address, index?: number): Promise<string | null> => {
+    if (!currentUser) return 'Please login first';
+    try {
+      const res = await fetch(`${API_URL}/auth/addresses`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid: currentUser.uid, address, index }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCurrentUser(data.user);
+        ls.set('sk_session', data.user);
+        return null;
+      }
+      return data.message || 'Failed to save address';
+    } catch {
+      return 'Server error. Please try again.';
+    }
+  };
+
+  const deleteAddress = async (index: number): Promise<string | null> => {
+    if (!currentUser) return 'Please login first';
+    try {
+      const res = await fetch(`${API_URL}/auth/addresses`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid: currentUser.uid, index }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCurrentUser(data.user);
+        ls.set('sk_session', data.user);
+        return null;
+      }
+      return data.message || 'Failed to delete address';
+    } catch {
+      return 'Server error. Please try again.';
+    }
   };
 
   const login = async (id: string, pass: string, role: 'customer' | 'shopkeeper'): Promise<string | null> => {
@@ -273,7 +315,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       currentUser, cart, orders, toast, cartOpen,
-      signup, login, logout, updateProfile, updateAddress,
+      signup, login, logout, updateProfile, updateAddress, saveAddress, deleteAddress,
       addToCart, changeQty, clearCart, cartSubtotal, deliveryCharge, cartTotal, setCartOpen,
       placeOrder, updateOrderStatus, refreshOrders, fetchOrders, setOrders, setCurrentUser,
       showToast,

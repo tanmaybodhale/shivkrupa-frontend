@@ -62,6 +62,11 @@ export default function Navbar({ showAuthButtons = false }: { showAuthButtons?: 
     setProfileOpen(false);
   };
 
+  const goToProfile = () => {
+    setMenuOpen(false);
+    router.push('/customer/profile');
+  };
+
   // ── Shared button style ──
   const btnBase = `px-3.5 py-1.5 rounded-md text-sm font-semibold border transition-all duration-200
     hover:-translate-y-[1px] hover:shadow-sm active:translate-y-0 active:shadow-none flex items-center gap-2`;
@@ -173,7 +178,7 @@ export default function Navbar({ showAuthButtons = false }: { showAuthButtons?: 
                   <Package size={16} />
                   <span>{t('orders')}</span>
                 </button>
-                <button onClick={() => setProfileOpen(true)} className={`${btnStyle} hidden md:flex`}>
+                <button onClick={goToProfile} className={`${btnStyle} hidden md:flex`}>
                   <User size={16} />
                   <span>{t('profile')}</span>
                 </button>
@@ -334,7 +339,7 @@ export default function Navbar({ showAuthButtons = false }: { showAuthButtons?: 
                         <Package size={16} /> {t('orders')}
                       </button>
                       <button
-                        onClick={() => { setMenuOpen(false); setProfileOpen(true); }}
+                        onClick={goToProfile}
                         className={`w-full px-4 py-3 flex items-center gap-3 text-sm font-semibold transition-colors ${isDark
                           ? 'text-gray-300 hover:bg-white/5'
                           : 'text-gray-700 hover:bg-orange-50'}`}

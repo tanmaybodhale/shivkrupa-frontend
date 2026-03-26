@@ -9,7 +9,7 @@ import { Product } from '@/lib/types';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export default function ProductGrid() {
-  const { activeCategory, sort, priceRange, search } = useProductFilter();
+  const { activeCategory, activeSubCategory, activeBrand, sort, priceRange, search } = useProductFilter();
   const { isDark } = useTheme();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,16 +37,21 @@ export default function ProductGrid() {
   const filtered = useMemo(() => {
     let list = products.filter(p => {
       const productCategory = (p.category || p.cat || '').trim().toLowerCase();
+      const productSubCat = (p.subCategory || '').trim().toLowerCase();
+      const productBrand = (p.brand || '').trim().toLowerCase();
       const activeCat = activeCategory.trim().toLowerCase();
       const matchCat = activeCategory === 'all' || productCategory === activeCat;
+      const matchSubCat = activeSubCategory === 'all' || productSubCat === activeSubCategory.toLowerCase();
+      const matchBrand = activeBrand === 'all' || productBrand === activeBrand.toLowerCase();
       const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
-        productCategory.includes(search.toLowerCase());
+        productCategory.includes(search.toLowerCase()) ||
+        productBrand.includes(search.toLowerCase());
       let matchPrice = true;
       if (priceRange === '0-50') matchPrice = p.price < 50;
       if (priceRange === '50-100') matchPrice = p.price >= 50 && p.price <= 100;
       if (priceRange === '100-300') matchPrice = p.price > 100 && p.price <= 300;
       if (priceRange === '300+') matchPrice = p.price > 300;
-      return matchCat && matchSearch && matchPrice;
+      return matchCat && matchSubCat && matchBrand && matchSearch && matchPrice;
     });
 
     if (sort === 'price-asc') list = [...list].sort((a, b) => a.price - b.price);
@@ -55,7 +60,7 @@ export default function ProductGrid() {
     if (sort === 'name') list = [...list].sort((a, b) => a.name.localeCompare(b.name));
 
     return list;
-  }, [products, activeCategory, sort, priceRange, search]);
+  }, [products, activeCategory, activeSubCategory, activeBrand, sort, priceRange, search]);
 
   const catLabel = activeCategory === 'all' ? 'All Items' : activeCategory.charAt(0).toUpperCase() + activeCategory.slice(1);
 

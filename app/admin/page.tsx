@@ -226,6 +226,8 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
     const newProduct = {
       name: 'New Product',
       category: 'General',
+      subCategory: '',
+      brand: '',
       price: 0,
       mrp: 0,
       image: 'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=300',
@@ -335,7 +337,8 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
             <tr className={`border-b ${isDark ? 'bg-[#13102a]/50 border-[#2d2450]' : 'bg-gray-50/80 border-gray-100'}`}>
               <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Image</th>
               <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Name</th>
-              <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Category</th>
+              <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Category / Sub</th>
+              <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Brand</th>
               <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Price / MRP</th>
               <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Weight</th>
               <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-gray-400">Qty</th>
@@ -404,11 +407,30 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                       />
                     </td>
                     <td className="px-6 py-3">
+                      <div className="flex flex-col gap-1.5">
+                        <input
+                          type="text"
+                          value={editForm.category || ''}
+                          onChange={e => setEditForm({ ...editForm, category: e.target.value })}
+                          className={`w-28 px-3 py-2 rounded-xl border text-sm font-medium focus:ring-2 outline-none transition-all capitalize ${isDark ? 'bg-[#1a1535] border-[#2d2450] text-gray-200 focus:bg-[#13102a] focus:ring-indigo-500/20 focus:border-indigo-500' : 'bg-orange-50/30 border-orange-200 text-gray-800 focus:bg-white focus:ring-orange-500/20 focus:border-orange-500'}`}
+                          placeholder="Category"
+                        />
+                        <input
+                          type="text"
+                          value={editForm.subCategory || ''}
+                          onChange={e => setEditForm({ ...editForm, subCategory: e.target.value })}
+                          className={`w-28 px-3 py-1.5 rounded-lg border text-xs font-medium focus:ring-2 outline-none transition-all capitalize ${isDark ? 'bg-[#13102a] border-[#2d2450] text-gray-400 focus:ring-indigo-500/20 focus:border-indigo-500' : 'bg-gray-50 border-gray-200 text-gray-500 focus:ring-orange-500/20 focus:border-orange-500'}`}
+                          placeholder="Sub-category"
+                        />
+                      </div>
+                    </td>
+                    <td className="px-6 py-3">
                       <input
                         type="text"
-                        value={editForm.category || ''}
-                        onChange={e => setEditForm({ ...editForm, category: e.target.value })}
-                        className={`w-28 px-3 py-2 rounded-xl border text-sm font-medium focus:ring-2 outline-none transition-all capitalize ${isDark ? 'bg-[#1a1535] border-[#2d2450] text-gray-200 focus:bg-[#13102a] focus:ring-indigo-500/20 focus:border-indigo-500' : 'bg-orange-50/30 border-orange-200 text-gray-800 focus:bg-white focus:ring-orange-500/20 focus:border-orange-500'}`}
+                        value={editForm.brand || ''}
+                        onChange={e => setEditForm({ ...editForm, brand: e.target.value })}
+                        className={`w-24 px-3 py-2 rounded-xl border text-sm font-medium focus:ring-2 outline-none transition-all ${isDark ? 'bg-[#1a1535] border-[#2d2450] text-gray-200 focus:bg-[#13102a] focus:ring-indigo-500/20 focus:border-indigo-500' : 'bg-orange-50/30 border-orange-200 text-gray-800 focus:bg-white focus:ring-orange-500/20 focus:border-orange-500'}`}
+                        placeholder="Brand"
                       />
                     </td>
                     <td className="px-6 py-3">
@@ -517,8 +539,20 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg capitalize ${isDark ? 'bg-[#13102a] text-gray-400' : 'bg-gray-100 text-gray-500'}`}>
-                        {product.category}
+                      <div className="flex flex-col gap-1">
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg capitalize ${isDark ? 'bg-[#13102a] text-gray-400' : 'bg-gray-100 text-gray-500'}`}>
+                          {product.category}
+                        </span>
+                        {product.subCategory && (
+                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded capitalize ${isDark ? 'text-indigo-400' : 'text-orange-500'}`}>
+                            ↳ {product.subCategory}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {product.brand || '—'}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -616,12 +650,26 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                           placeholder="Product name"
                         />
                         <input
-                          type="text"
-                          value={editForm.category || ''}
-                          onChange={e => setEditForm({ ...editForm, category: e.target.value })}
-                          className={`w-full px-3 py-2 rounded-lg border text-sm font-medium outline-none ${isDark ? 'bg-[#1a1535] border-[#2d2450] text-gray-200' : 'bg-orange-50/30 border-orange-200 text-gray-800'}`}
-                          placeholder="Category"
-                        />
+                           type="text"
+                           value={editForm.category || ''}
+                           onChange={e => setEditForm({ ...editForm, category: e.target.value })}
+                           className={`w-full px-3 py-2 rounded-lg border text-sm font-medium outline-none ${isDark ? 'bg-[#1a1535] border-[#2d2450] text-gray-200' : 'bg-orange-50/30 border-orange-200 text-gray-800'}`}
+                           placeholder="Category"
+                         />
+                         <input
+                           type="text"
+                           value={editForm.subCategory || ''}
+                           onChange={e => setEditForm({ ...editForm, subCategory: e.target.value })}
+                           className={`w-full px-3 py-2 rounded-lg border text-xs font-medium outline-none ${isDark ? 'bg-[#13102a] border-[#2d2450] text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-500'}`}
+                           placeholder="Sub-category"
+                         />
+                         <input
+                           type="text"
+                           value={editForm.brand || ''}
+                           onChange={e => setEditForm({ ...editForm, brand: e.target.value })}
+                           className={`w-full px-3 py-2 rounded-lg border text-sm font-medium outline-none ${isDark ? 'bg-[#1a1535] border-[#2d2450] text-gray-200' : 'bg-orange-50/30 border-orange-200 text-gray-800'}`}
+                           placeholder="Brand (optional)"
+                         />
                      </div>
                   </div>
 

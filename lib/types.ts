@@ -1,3 +1,16 @@
+export interface Address {
+  label?: string;
+  street: string;
+  area: string;
+  city: string;
+  state: string;
+  pincode: string;
+  location?: {
+    lat: number;
+    lng: number;
+  };
+}
+
 export interface User {
   uid: string;
   name: string;
@@ -6,17 +19,8 @@ export interface User {
   pass?: string;
   role: 'customer' | 'shopkeeper';
   joinedAt?: string;
-  address?: {
-    street: string;
-    area: string;
-    city: string;
-    state: string;
-    pincode: string;
-    location?: {
-      lat: number;
-      lng: number;
-    };
-  };
+  address?: Address;
+  addresses?: Address[];
 }
 
 export interface Category {
@@ -31,6 +35,8 @@ export interface Product {
   name: string;
   cat?: string;
   category: string;
+  subCategory?: string;
+  brand?: string;
   price: number;
   mrp: number;
   description?: string;

@@ -29,6 +29,7 @@ interface AppState {
   orders: Order[];
   toast: { msg: string; visible: boolean };
   cartOpen: boolean;
+  wishlist: string[];
 
   signup: (name: string, phone: string, email: string, pass: string, address?: User['address']) => Promise<string | null>;
   login: (id: string, pass: string, role: 'customer' | 'shopkeeper') => Promise<string | null>;
@@ -45,6 +46,9 @@ interface AppState {
   deliveryCharge: () => number;
   cartTotal: () => number;
   setCartOpen: (open: boolean) => void;
+
+  toggleWishlist: (productId: string) => Promise<void>;
+  isInWishlist: (productId: string) => boolean;
 
   placeOrder: (paymentMethod?: string, deliveryAddress?: User['address']) => Promise<Order | null>;
   updateOrderStatus: (orderId: string, status: Order['status']) => void;
@@ -64,13 +68,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [toast, setToast] = useState({ msg: '', visible: false });
   const [cartOpen, setCartOpen] = useState(false);
+  const [wishlist, setWishlist] = useState<string[]>([]);
 
   // Persist orders + load on mount
   useEffect(() => {
     setOrders(ls.get<Order[]>('sk_orders', []));
     // Restore session
     const u = ls.get<User | null>('sk_session', null);
-    if (u) setCurrentUser(u);
+    if (u) {
+      setCurrentUser(u);
+      // Load wishlist from saved session
+      setWishlist(u.wishlist || ls.get<string[]>('sk_wishlist', []));
+    } else {
+      // Guest wishlist from localStorage
+      setWishlist(ls.get<string[]>('sk_wishlist', []));
+    }
   }, []);
 
   const showToast = useCallback((msg: string) => {
@@ -185,7 +197,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setCurrentUser(null);
     setCart([]);
+    setWishlist([]);
     ls.set('sk_session', null);
+    ls.set('sk_wishlist', []);
   };
 
   // ── Cart ─────────────────────────────────────────────────
@@ -220,6 +234,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const clearCart = () => setCart([]);
 
   const cartSubtotal = () => cart.reduce((s, i) => s + i.price * i.qty, 0);
+
+  // ── Wishlist ─────────────────────────────────────────────
+  const toggleWishlist = useCallback(async (productId: string) => {
+    const alreadyIn = wishlist.includes(productId);
+    const updated = alreadyIn
+      ? wishlist.filter(id => id !== productId)
+      : [...wishlist, productId];
+
+    // Optimistic update
+    setWishlist(updated);
+    ls.set('sk_wishlist', updated);
+
+    // Sync to backend if logged in
+    if (currentUser && currentUser.role === 'customer') {
+      try {
+        await fetch(`${API_URL}/auth/wishlist/toggle`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uid: currentUser.uid, productId }),
+        });
+      } catch {
+        // silently fail — local state already updated
+      }
+    }
+  }, [wishlist, currentUser, API_URL]);
+
+  const isInWishlist = useCallback((productId: string) => wishlist.includes(productId), [wishlist]);
 
   const deliveryCharge = () => {
     if (cart.length === 0) return 0;
@@ -314,9 +355,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      currentUser, cart, orders, toast, cartOpen,
+      currentUser, cart, orders, toast, cartOpen, wishlist,
       signup, login, logout, updateProfile, updateAddress, saveAddress, deleteAddress,
       addToCart, changeQty, clearCart, cartSubtotal, deliveryCharge, cartTotal, setCartOpen,
+      toggleWishlist, isInWishlist,
       placeOrder, updateOrderStatus, refreshOrders, fetchOrders, setOrders, setCurrentUser,
       showToast,
     }}>

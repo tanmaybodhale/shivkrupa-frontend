@@ -10,15 +10,16 @@ import ProfileModal from '@/components/customer/ProfileModal';
 import { User as AppUser } from '@/lib/types';
 import {
   ShoppingCart, LogOut, LayoutDashboard, Phone, Package,
-  User, Sun, Moon, Globe, Menu, X, ChevronRight,
+  User, Sun, Moon, Globe, Menu, X, ChevronRight, Heart,
 } from 'lucide-react';
 
 export default function Navbar({ showAuthButtons = false }: { showAuthButtons?: boolean }) {
-  const { currentUser, logout, cart, setCartOpen, updateProfile, showToast } = useApp();
+  const { currentUser, logout, cart, setCartOpen, updateProfile, showToast, wishlist } = useApp();
   const { isDark, toggleTheme } = useTheme();
   const { lang, setLang, t } = useLang();
   const router = useRouter();
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
+  const wishlistCount = wishlist.length;
 
   const [animating, setAnimating] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -219,6 +220,28 @@ export default function Navbar({ showAuthButtons = false }: { showAuthButtons?: 
               </button>
             )}
 
+            {/* Wishlist Heart — always visible for customers & guests */}
+            {currentUser?.role !== 'shopkeeper' && (
+              <button
+                onClick={() => router.push('/wishlist')}
+                title="My Wishlist"
+                className={`relative flex items-center justify-center w-9 h-9 rounded-full border transition-all active:scale-90 ${
+                  isDark
+                    ? 'bg-red-500/10 border-red-500/25 text-red-400 hover:bg-red-500/20 hover:border-red-500/40'
+                    : 'bg-red-50 border-red-200 text-red-400 hover:bg-red-100 hover:border-red-300'
+                }`}
+              >
+                <Heart size={16} strokeWidth={2.5} fill={wishlistCount > 0 ? 'currentColor' : 'none'} />
+                {wishlistCount > 0 && (
+                  <span className={`absolute -top-1.5 -right-1.5 min-w-[17px] h-[17px] px-0.5 rounded-full flex items-center justify-center text-white text-[9px] font-black border border-white shadow-sm ${
+                    isDark ? 'bg-red-500' : 'bg-red-500'
+                  }`}>
+                    {wishlistCount > 99 ? '99+' : wishlistCount}
+                  </span>
+                )}
+              </button>
+            )}
+
             {/* Cart — always visible */}
             <button
               onClick={() => setCartOpen(true)}
@@ -337,6 +360,20 @@ export default function Navbar({ showAuthButtons = false }: { showAuthButtons?: 
                           : 'text-gray-700 hover:bg-orange-50'}`}
                       >
                         <Package size={16} /> {t('orders')}
+                      </button>
+                      <button
+                        onClick={() => navigate('/wishlist')}
+                        className={`w-full px-4 py-3 flex items-center gap-3 text-sm font-semibold transition-colors ${isDark
+                          ? 'text-gray-300 hover:bg-white/5'
+                          : 'text-gray-700 hover:bg-orange-50'}`}
+                      >
+                        <Heart size={16} className="text-red-400" />
+                        Wishlist
+                        {wishlistCount > 0 && (
+                          <span className="ml-auto text-[10px] font-black bg-red-500 text-white px-1.5 py-0.5 rounded-full">
+                            {wishlistCount}
+                          </span>
+                        )}
                       </button>
                       <button
                         onClick={goToProfile}

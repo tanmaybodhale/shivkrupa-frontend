@@ -21,6 +21,7 @@ export interface User {
   joinedAt?: string;
   address?: Address;
   addresses?: Address[];
+  wishlist?: string[];
 }
 
 export interface Category {
@@ -48,7 +49,9 @@ export interface Product {
   isNew?: boolean;
   tag?: string;
   quantity?: number | null;
+  hidden?: boolean;
 }
+
 
 export interface CartItem extends Product {
   qty: number;

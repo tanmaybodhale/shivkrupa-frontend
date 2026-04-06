@@ -6,27 +6,11 @@ import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/context/ThemeContext';
 import Navbar from '@/components/Navbar';
 import Toast from '@/components/shared/Toast';
-import { Address, Order } from '@/lib/types';
+import { Address } from '@/lib/types';
 import {
   ChevronLeft, User, MapPin, Plus, Pencil, Trash2, Check, X,
-  Package, Clock, Truck, CheckCircle2, XCircle, ShoppingBag,
-  Home, Briefcase, Star, ChevronRight,
+  Home, Briefcase,
 } from 'lucide-react';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-
-const ORDER_STEPS = [
-  { key: 'pending', label: 'Placed', percent: 25, icon: '📦' },
-  { key: 'confirmed', label: 'Confirmed', percent: 50, icon: '✅' },
-  { key: 'dispatched', label: 'On the Way', percent: 75, icon: '🚚' },
-  { key: 'delivered', label: 'Delivered', percent: 100, icon: '🏠' },
-];
-
-function getProgress(status: string): number {
-  if (status === 'cancelled') return 0;
-  const step = ORDER_STEPS.find(s => s.key === status);
-  return step ? step.percent : 25;
-}
 
 const ADDRESS_LABELS = ['Home', 'Work', 'Other'];
 const ADDRESS_ICONS: Record<string, React.ReactNode> = {
@@ -57,8 +41,8 @@ function MiniField({ label, value, onChange, placeholder, isDark }: {
   );
 }
 
-function AddressCard({ address, index, isDark, onEdit, onDelete, isDefault }: {
-  address: Address; index: number; isDark: boolean; onEdit: () => void; onDelete: () => void; isDefault: boolean;
+function AddressCard({ address, isDark, onEdit, onDelete, isDefault }: {
+  address: Address; isDark: boolean; onEdit: () => void; onDelete: () => void; isDefault: boolean;
 }) {
   const label = address.label || 'Home';
   const hasContent = address.street || address.area || address.city;
@@ -107,43 +91,13 @@ function AddressCard({ address, index, isDark, onEdit, onDelete, isDefault }: {
   );
 }
 
-function MiniOrderProgress({ status, isDark }: { status: string; isDark: boolean }) {
-  const progress = getProgress(status);
-  const isCancelled = status === 'cancelled';
-
-  if (isCancelled) return (
-    <div className={`flex items-center gap-1.5 text-[10px] font-bold text-red-500 mt-2`}>
-      <XCircle size={11} /> Order Cancelled
-    </div>
-  );
-
-  return (
-    <div className="mt-2">
-      <div className={`h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-[#2d2450]' : 'bg-gray-100'}`}>
-        <div
-          className={`h-full rounded-full transition-all duration-500 ${isDark ? 'bg-gradient-to-r from-indigo-500 to-purple-500' : 'bg-gradient-to-r from-orange-400 to-yellow-400'}`}
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-      <div className="flex justify-between mt-1">
-        {ORDER_STEPS.map(step => (
-          <span key={step.key} className={`text-[8px] font-bold ${progress >= step.percent ? (isDark ? 'text-indigo-400' : 'text-orange-500') : (isDark ? 'text-gray-700' : 'text-gray-300')}`}>
-            {step.label}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export default function UserProfilePage() {
   const { currentUser, orders, fetchOrders, showToast, updateProfile, saveAddress, deleteAddress } = useApp();
   const { isDark } = useTheme();
   const router = useRouter();
 
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<'profile' | 'addresses' | 'orders'>('profile');
-  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'profile' | 'addresses'>('profile');
 
   // Name edit
   const [editingName, setEditingName] = useState(false);
@@ -162,7 +116,8 @@ export default function UserProfilePage() {
     if (!mounted) return;
     if (!currentUser) { router.replace('/'); return; }
     if (currentUser.role === 'shopkeeper') { router.replace('/admin'); return; }
-    fetchOrders().finally(() => setLoading(false));
+    // Fetch orders just for the stats row
+    fetchOrders();
   }, [mounted, currentUser, router, fetchOrders]);
 
   useEffect(() => {
@@ -219,17 +174,6 @@ export default function UserProfilePage() {
   const handleCancelAddressEdit = () => {
     setEditingAddressIndex(null);
     setAddingNew(false);
-  };
-
-  const getStatusConfig = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'pending': return { color: 'bg-yellow-100 text-yellow-800', icon: <Clock size={12} /> };
-      case 'confirmed': return { color: 'bg-orange-100 text-orange-800', icon: <Package size={12} /> };
-      case 'dispatched': return { color: 'bg-cyan-100 text-cyan-800', icon: <Truck size={12} /> };
-      case 'delivered': return { color: 'bg-green-100 text-green-800', icon: <CheckCircle2 size={12} /> };
-      case 'cancelled': return { color: 'bg-red-100 text-red-800', icon: <XCircle size={12} /> };
-      default: return { color: 'bg-gray-100 text-gray-800', icon: <Package size={12} /> };
-    }
   };
 
   const tabStyle = (tab: typeof activeTab) =>
@@ -304,23 +248,30 @@ export default function UserProfilePage() {
           {/* Stats row */}
           <div className={`grid grid-cols-3 gap-3 mt-5 pt-4 border-t ${isDark ? 'border-[#2d2450]' : 'border-orange-100'}`}>
             {[
-              { label: 'Total Orders', value: orders.length },
-              { label: 'Delivered', value: orders.filter(o => o.status === 'delivered').length },
-              { label: 'Addresses', value: addresses.length },
+              { label: 'Total Orders', value: orders.length, onClick: () => router.push('/customer/orders') },
+              { label: 'Delivered', value: orders.filter(o => o.status === 'delivered').length, onClick: () => router.push('/customer/orders') },
+              { label: 'Addresses', value: addresses.length, onClick: () => setActiveTab('addresses') },
             ].map(stat => (
-              <div key={stat.label} className={`text-center px-2 py-2 rounded-xl ${isDark ? 'bg-[#13102a]' : 'bg-orange-50/50'}`}>
+              <button
+                key={stat.label}
+                onClick={stat.onClick}
+                className={`text-center px-2 py-2 rounded-xl transition-all active:scale-95 ${isDark ? 'bg-[#13102a] hover:bg-[#2d2450]/60' : 'bg-orange-50/50 hover:bg-orange-100/60'}`}
+              >
                 <div className={`text-xl font-black ${isDark ? 'text-indigo-400' : 'text-orange-600'}`}>{stat.value}</div>
                 <div className={`text-[10px] font-bold mt-0.5 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{stat.label}</div>
-              </div>
+              </button>
             ))}
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs — only Profile & Addresses */}
         <div className={`flex gap-1.5 p-1.5 rounded-2xl mb-5 ${isDark ? 'bg-[#1a1535]' : 'bg-white'}`}>
-          <button className={tabStyle('profile')} onClick={() => setActiveTab('profile')}><User size={14} className="inline mr-1.5" />Profile</button>
-          <button className={tabStyle('addresses')} onClick={() => setActiveTab('addresses')}><MapPin size={14} className="inline mr-1.5" />Addresses</button>
-          <button className={tabStyle('orders')} onClick={() => setActiveTab('orders')}><Package size={14} className="inline mr-1.5" />Orders</button>
+          <button className={tabStyle('profile')} onClick={() => setActiveTab('profile')}>
+            <User size={14} className="inline mr-1.5" />Profile
+          </button>
+          <button className={tabStyle('addresses')} onClick={() => setActiveTab('addresses')}>
+            <MapPin size={14} className="inline mr-1.5" />Addresses
+          </button>
         </div>
 
         {/* ── Profile Tab ── */}
@@ -347,14 +298,14 @@ export default function UserProfilePage() {
         {/* ── Addresses Tab ── */}
         {activeTab === 'addresses' && (
           <div className="space-y-4">
-            {/* Address form (edit/add) */}
+            {/* Address form (edit / add new) */}
             {isEditing && (
               <div className={`rounded-[1.5rem] border p-5 shadow-sm ${isDark ? 'bg-[#1a1535] border-indigo-500/30' : 'bg-white border-orange-300/50'}`}>
                 <h4 className={`text-sm font-black mb-4 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
                   {addingNew ? 'Add New Address' : 'Edit Address'}
                 </h4>
 
-                {/* Label select */}
+                {/* Label selector */}
                 <div className="flex gap-2 mb-3">
                   {ADDRESS_LABELS.map(lbl => (
                     <button
@@ -389,7 +340,7 @@ export default function UserProfilePage() {
               </div>
             )}
 
-            {/* Saved addresses list */}
+            {/* Saved list */}
             {addresses.length === 0 && !isEditing ? (
               <div className={`flex flex-col items-center justify-center py-16 rounded-[1.5rem] border ${isDark ? 'bg-[#1a1535] border-[#2d2450]' : 'bg-white border-orange-100'}`}>
                 <MapPin size={40} className={`mb-4 ${isDark ? 'text-gray-600' : 'text-gray-300'}`} />
@@ -401,7 +352,6 @@ export default function UserProfilePage() {
                   <AddressCard
                     key={idx}
                     address={addr}
-                    index={idx}
                     isDark={isDark}
                     isDefault={idx === 0}
                     onEdit={() => handleEditAddress(idx)}
@@ -411,7 +361,7 @@ export default function UserProfilePage() {
               </div>
             )}
 
-            {/* Add new button */}
+            {/* Add new */}
             {!isEditing && (
               <button
                 onClick={handleAddNew}
@@ -420,85 +370,6 @@ export default function UserProfilePage() {
                 <Plus size={18} />
                 Add New Address
               </button>
-            )}
-          </div>
-        )}
-
-        {/* ── Orders Tab ── */}
-        {activeTab === 'orders' && (
-          <div>
-            {loading ? (
-              <div className="space-y-4 animate-pulse">
-                {[1, 2].map(i => (
-                  <div key={i} className={`h-36 rounded-3xl border ${isDark ? 'bg-[#1a1535] border-[#2d2450]' : 'bg-white border-orange-100'}`} />
-                ))}
-              </div>
-            ) : orders.length === 0 ? (
-              <div className={`flex flex-col items-center justify-center py-20 rounded-3xl border text-center ${isDark ? 'bg-[#1a1535] border-[#2d2450]' : 'bg-white border-orange-100'}`}>
-                <ShoppingBag size={48} className="text-orange-200 mb-4" strokeWidth={1.5} />
-                <h4 className={`font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>No orders yet</h4>
-                <button onClick={() => router.push('/customer')} className={`mt-4 px-6 py-2 rounded-xl font-bold text-white text-sm ${isDark ? 'bg-indigo-600' : 'bg-orange-500'}`}>
-                  Start Shopping
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {orders.slice(0, 10).map(order => {
-                  const statusCfg = getStatusConfig(order.status);
-                  return (
-                    <div key={order.orderId} className={`rounded-[1.5rem] border overflow-hidden shadow-sm ${isDark ? 'bg-[#1a1535] border-[#2d2450]' : 'bg-white border-orange-100'}`}>
-                      {/* Header */}
-                      <div className={`px-4 py-3 flex items-center justify-between border-b ${isDark ? 'border-[#2d2450] bg-[#13102a]/50' : 'border-orange-50 bg-orange-50/30'}`}>
-                        <div>
-                          <span className={`text-xs font-black ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>#{order.orderId}</span>
-                          <span className={`block text-[10px] mt-0.5 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{order.timeStr}</span>
-                        </div>
-                        <div className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold ${statusCfg.color}`}>
-                          {statusCfg.icon} <span className="ml-1 capitalize">{order.status}</span>
-                        </div>
-                      </div>
-
-                      {/* Progress */}
-                      <div className={`px-4 pt-3 pb-2 border-b ${isDark ? 'border-[#2d2450]' : 'border-orange-50'}`}>
-                        <MiniOrderProgress status={order.status} isDark={isDark} />
-                      </div>
-
-                      {/* Items preview (up to 2) */}
-                      <div className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="flex -space-x-2">
-                            {(order.items || []).slice(0, 3).map((item, idx) => (
-                              <div key={idx} className={`w-10 h-10 rounded-xl border-2 flex items-center justify-center overflow-hidden ${isDark ? 'border-[#1a1535] bg-[#13102a]' : 'border-white bg-gray-50'}`}>
-                                {item.image ? <img src={item.image} alt={item.name} className="w-full h-full object-cover" /> : <Package size={16} className="text-gray-300" />}
-                              </div>
-                            ))}
-                            {(order.items || []).length > 3 && (
-                              <div className={`w-10 h-10 rounded-xl border-2 flex items-center justify-center text-[10px] font-black ${isDark ? 'border-[#1a1535] bg-[#13102a] text-gray-500' : 'border-white bg-gray-50 text-gray-400'}`}>
-                                +{order.items.length - 3}
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-xs font-medium truncate ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                              {order.items.map(i => i.name).join(', ')}
-                            </p>
-                          </div>
-                          <span className={`text-sm font-black shrink-0 ${isDark ? 'text-indigo-400' : 'text-orange-600'}`}>₹{order.total}</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {orders.length > 10 && (
-                  <button
-                    onClick={() => router.push('/customer/orders')}
-                    className={`w-full py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 border ${isDark ? 'border-[#2d2450] text-gray-400 hover:text-indigo-400' : 'border-orange-100 text-gray-400 hover:text-orange-600'}`}
-                  >
-                    View all {orders.length} orders <ChevronRight size={16} />
-                  </button>
-                )}
-              </div>
             )}
           </div>
         )}

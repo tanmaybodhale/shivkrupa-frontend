@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useProductFilter } from './useProductFilter';
 import { useTheme } from '@/context/ThemeContext';
+import { useApp } from '@/context/AppContext';
 import ProductCard from './ProductCard';
 import { Product } from '@/lib/types';
 
@@ -11,13 +12,17 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 export default function ProductGrid() {
   const { activeCategory, activeSubCategory, activeBrand, sort, priceRange, search } = useProductFilter();
   const { isDark } = useTheme();
+  const { currentUser } = useApp();
+  const isAdmin = currentUser?.role === 'shopkeeper';
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch(`${API_URL}/catalog`);
+        // Admin gets all products including hidden ones; customers only see visible ones
+        const url = isAdmin ? `${API_URL}/catalog?admin=true` : `${API_URL}/catalog`;
+        const res = await fetch(url);
         const data = await res.json();
         if (data.success) {
           setProducts(data.products);
@@ -30,9 +35,9 @@ export default function ProductGrid() {
     };
     fetchProducts();
 
-    const interval = setInterval(fetchProducts, 3000);
+    const interval = setInterval(fetchProducts, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isAdmin]);
 
   const filtered = useMemo(() => {
     let list = products.filter(p => {

@@ -94,8 +94,8 @@ export default function AuthCard() {
       {/* LOGIN */}
       {tab === 'login' && (
         <div className="fade-up animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <Field label="Phone / Email" value={loginId} onChange={setLoginId} placeholder="Enter phone or email" />
-          <Field label="Password" value={loginPass} onChange={setLoginPass} placeholder="Enter password" type="password" />
+          <Field label="Phone / Email" value={loginId} onChange={setLoginId} placeholder="e.g. 9876543210 or you@email.com" />
+          <Field label="Password" value={loginPass} onChange={setLoginPass} placeholder="Enter your password" type="password" />
           
           <button
             onClick={handleLogin}
@@ -127,10 +127,10 @@ export default function AuthCard() {
       {/* SIGNUP */}
       {tab === 'signup' && (
         <div className="fade-up animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <Field label="Full Name" value={signupName} onChange={setSignupName} placeholder="Your full name" />
-          <Field label="Phone Number" value={signupPhone} onChange={setSignupPhone} placeholder="10-digit phone number" type="tel" />
-          <Field label="Email (optional)" value={signupEmail} onChange={setSignupEmail} placeholder="your@email.com" type="email" />
-          <Field label="Password" value={signupPass} onChange={setSignupPass} placeholder="Create a password" type="password" />
+          <Field label="Full Name" value={signupName} onChange={setSignupName} placeholder="e.g. Rahul Sharma" />
+          <Field label="Phone Number" value={signupPhone} onChange={setSignupPhone} placeholder="10-digit mobile number (e.g. 9876543210)" type="tel" />
+          <Field label="Email (optional)" value={signupEmail} onChange={setSignupEmail} placeholder="your@email.com — used for order updates" type="email" />
+          <Field label="Password" value={signupPass} onChange={setSignupPass} placeholder="Min. 6 characters, include a number" type="password" />
           
           <button
             onClick={handleSignup}

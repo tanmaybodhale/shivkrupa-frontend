@@ -11,7 +11,8 @@ import UsersMap from '@/components/shopkeeper/UsersMap';
 import UsersManager from '@/components/shopkeeper/UsersManager';
 import Toast from '@/components/shared/Toast';
 import { Product, Order } from '@/lib/types';
-import { Plus, Pencil, Trash2, Check, X, Package, ClipboardList, Infinity as InfinityIcon, Map, Users, Upload, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Check, X, Package, ClipboardList, Infinity as InfinityIcon, Map, Users, Upload, Loader2, Images } from 'lucide-react';
+import NotificationPanel from '@/components/shopkeeper/NotificationPanel';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -56,6 +57,13 @@ export default function AdminPage() {
     }
   };
 
+  // Poll for new orders every 15 seconds for notifications
+  useEffect(() => {
+    if (!mounted || currentUser?.role !== 'shopkeeper') return;
+    const interval = setInterval(fetchOrders, 15000);
+    return () => clearInterval(interval);
+  }, [mounted, currentUser]);
+
   if (!currentUser || currentUser.role !== 'shopkeeper') return null;
 
   return (
@@ -79,6 +87,8 @@ export default function AdminPage() {
               <span className={`text-sm font-bold ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                 📞 9975636622
               </span>
+              {/* Notification Bell */}
+              <NotificationPanel />
             </div>
           </div>
 
@@ -163,7 +173,9 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
   const [editForm, setEditForm] = useState<Partial<Product>>({});
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [uploadingMulti, setUploadingMulti] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const multiFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchProducts();
@@ -296,9 +308,36 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
       showToast(`❌ Upload failed: ${error.message || 'Network error. Is the backend running?'}`);
     } finally {
       setUploading(false);
-      // Reset file input so the same file can be re-selected
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  };
+
+  // Upload multiple images
+  const uploadMultipleImages = async (files: File[]) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    for (const file of files) {
+      if (!allowed.includes(file.type)) { showToast(`❌ Invalid type: ${file.type}`); return; }
+      if (file.size > 5 * 1024 * 1024) { showToast('❌ File too large (max 5MB)'); return; }
+    }
+    setUploadingMulti(true);
+    try {
+      const formData = new FormData();
+      files.forEach(f => formData.append('images', f));
+      const res = await fetch(`${API_URL}/upload/multiple`, { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!data.success) { showToast(`❌ Upload failed: ${data.message}`); return; }
+      setEditForm(prev => ({ ...prev, images: [...(prev.images || []), ...data.urls] }));
+      showToast(`✅ ${data.urls.length} image(s) uploaded!`);
+    } catch (error: any) {
+      showToast(`❌ Upload failed: ${error.message}`);
+    } finally {
+      setUploadingMulti(false);
+      if (multiFileInputRef.current) multiFileInputRef.current.value = '';
+    }
+  };
+
+  const removeExtraImage = (index: number) => {
+    setEditForm(prev => ({ ...prev, images: (prev.images || []).filter((_, i) => i !== index) }));
   };
 
   if (loading) {
@@ -354,8 +393,8 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                   /* --- EDIT MODE ROW --- */
                   <>
                     <td className="px-6 py-3">
-                      <div className="relative group/img">
-                        {/* Hidden file input */}
+                      <div className="flex flex-col gap-2">
+                        {/* Hidden file input - single primary */}
                         <input
                           ref={fileInputRef}
                           type="file"
@@ -366,7 +405,19 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                             if (file) uploadImage(file);
                           }}
                         />
-                        {/* Clickable image preview / upload button */}
+                        {/* Hidden multi-file input */}
+                        <input
+                          ref={multiFileInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,image/gif"
+                          multiple
+                          className="hidden"
+                          onChange={e => {
+                            const files = Array.from(e.target.files || []);
+                            if (files.length) uploadMultipleImages(files);
+                          }}
+                        />
+                        {/* Primary image */}
                         <button
                           type="button"
                           onClick={() => fileInputRef.current?.click()}
@@ -375,7 +426,7 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                             ? 'border-[#2d2450] bg-[#13102a] hover:border-indigo-500 hover:bg-indigo-500/10'
                             : 'border-orange-200 bg-orange-50/30 hover:border-orange-400 hover:bg-orange-50'
                             } ${uploading ? 'opacity-60 cursor-wait' : ''}`}
-                          title={uploading ? 'Uploading...' : 'Click to upload image'}
+                          title={uploading ? 'Uploading...' : 'Click to set main image'}
                         >
                           {uploading ? (
                             <Loader2 size={20} className="animate-spin text-gray-400" />
@@ -384,10 +435,37 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                           ) : (
                             <div className="flex flex-col items-center gap-0.5">
                               <Upload size={16} className={isDark ? 'text-indigo-400' : 'text-orange-400'} />
-                              <span className="text-[8px] font-bold text-gray-400">Upload</span>
+                              <span className="text-[8px] font-bold text-gray-400">Main</span>
                             </div>
                           )}
                         </button>
+                        {/* Multi-image add button */}
+                        <button
+                          type="button"
+                          onClick={() => multiFileInputRef.current?.click()}
+                          disabled={uploadingMulti}
+                          className={`w-16 py-1 rounded-lg border border-dashed flex items-center justify-center gap-0.5 transition-all text-[9px] font-bold ${isDark ? 'border-[#2d2450] text-indigo-400 hover:border-indigo-500 hover:bg-indigo-500/10' : 'border-orange-200 text-orange-500 hover:border-orange-400 hover:bg-orange-50'} ${uploadingMulti ? 'opacity-60 cursor-wait' : ''}`}
+                          title="Add more images"
+                        >
+                          {uploadingMulti ? <Loader2 size={10} className="animate-spin" /> : <><Images size={10} />+more</>}
+                        </button>
+                        {/* Extra images strip */}
+                        {(editForm.images || []).length > 0 && (
+                          <div className="flex flex-wrap gap-1 max-w-[80px]">
+                            {(editForm.images || []).map((img, idx) => (
+                              <div key={idx} className="relative group/thumb">
+                                <img src={img} alt={`img-${idx}`} className="w-7 h-7 rounded-md object-cover border border-gray-200" />
+                                <button
+                                  type="button"
+                                  onClick={() => removeExtraImage(idx)}
+                                  className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 text-white rounded-full text-[8px] flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity"
+                                >
+                                  <X size={7} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-3">

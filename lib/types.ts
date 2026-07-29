@@ -43,6 +43,7 @@ export interface Product {
   description?: string;
   weight?: string;
   image: string;
+  images?: string[];
   emoji?: string;
   unit: string;
   inStock: boolean;
@@ -50,6 +51,15 @@ export interface Product {
   tag?: string;
   quantity?: number | null;
   hidden?: boolean;
+}
+
+export interface AdminNotification {
+  id: string;
+  orderId: string;
+  customerName: string;
+  total: number;
+  time: string;
+  read: boolean;
 }
 
 

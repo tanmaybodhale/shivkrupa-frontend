@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800;900&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -332,8 +330,9 @@ html.dark .status-delivered {
 .cart-sidebar {
   position: fixed;
   top: 0;
-  right: -440px;
-  width: 420px;
+  right: -100vw;
+  width: 100vw;
+  max-width: 420px;
   height: 100vh;
   background: #fff;
   z-index: 200;
@@ -341,6 +340,13 @@ html.dark .status-delivered {
   transition: right .35s cubic-bezier(.4, 0, .2, 1);
   display: flex;
   flex-direction: column;
+}
+
+@media (min-width: 640px) {
+  .cart-sidebar {
+    width: 420px;
+    right: -440px;
+  }
 }
 
 .cart-sidebar.open {

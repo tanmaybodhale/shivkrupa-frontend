@@ -33,6 +33,7 @@ export default function ProductPage() {
   // Zoom / pan
   const [scale, setScale] = useState(1);
   const [pos, setPos] = useState({ x: 0, y: 0 });
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const dragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
   const posRef = useRef({ x: 0, y: 0 });
@@ -144,6 +145,12 @@ export default function ProductPage() {
     ? Math.round(((product.mrp - product.price) / product.mrp) * 100)
     : 0;
   const hasImage = product.image && product.image.startsWith('http');
+  // Build gallery: primary + extras
+  const gallery = [
+    ...(hasImage ? [product.image] : []),
+    ...((product.images || []).filter(img => img && img !== product.image)),
+  ];
+  const displayImage = selectedImage || (gallery[0] || null);
 
   /* ── Render ── */
   return (
@@ -184,58 +191,110 @@ export default function ProductPage() {
         }`}>
           <div className="grid md:grid-cols-2">
 
-            {/* ── Image Panel ── */}
-            <div
-              className={`relative overflow-hidden select-none ${
-                isDark ? 'bg-gradient-to-br from-[#131028] to-[#1a1535]' : 'bg-gradient-to-br from-[#fdf6e3] to-[#fff8e7]'
-              }`}
-              style={{ minHeight: 380, height: 380 }}
-              onMouseDown={handleMouseDown}
-            >
-              {/* Zoom/pan wrapper — fills the full panel */}
-              <div
-                className="absolute inset-0 flex items-center justify-center transition-transform duration-150 ease-out"
-                style={{ transform: `scale(${scale}) translate(${pos.x / scale}px, ${pos.y / scale}px)` }}
-              >
-                {hasImage ? (
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    className="w-full h-full object-contain p-8"
-                    style={{ maxHeight: 380 }}
-                    draggable={false}
-                  />
-                ) : (
-                  <span className="text-[9rem] leading-none select-none">{product.emoji || '📦'}</span>
-                )}
-              </div>
+            {/* ── Image Slider Panel ── */}
+            {(() => {
+              const currentIdx = gallery.length > 0
+                ? Math.max(0, gallery.indexOf(selectedImage || gallery[0]))
+                : 0;
+              const goTo = (idx: number) => {
+                const clamped = Math.max(0, Math.min(gallery.length - 1, idx));
+                setSelectedImage(gallery[clamped]);
+                resetZoom();
+              };
 
-              {/* Badges */}
-              <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
-                {discountPct > 0 && (
-                  <span className="bg-blue-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg shadow-lg uppercase">
-                    {discountPct}% Off
-                  </span>
-                )}
-                {product.isNew && (
-                  <span className="bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg shadow-lg uppercase">
-                    New
-                  </span>
-                )}
-                {product.hidden && (
-                  <span className="bg-red-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg shadow-lg uppercase">
-                    Hidden
-                  </span>
-                )}
-              </div>
+              // Touch swipe state stored via closure refs
+              let touchStartX = 0;
 
-              {/* Zoom controls */}
-              <div className="absolute bottom-4 right-4 z-10 flex items-center gap-1 bg-black/20 backdrop-blur-md p-1 rounded-xl">
-                <button onClick={() => zoom(-0.2)} disabled={scale <= 1} className="p-1.5 text-white disabled:opacity-30"><ZoomOut size={15} /></button>
-                <button onClick={resetZoom} className="p-1.5 text-white hover:text-blue-300 transition-colors"><RotateCcw size={13} /></button>
-                <button onClick={() => zoom(0.2)} disabled={scale >= 4} className="p-1.5 text-white disabled:opacity-30"><ZoomIn size={15} /></button>
-              </div>
-            </div>
+              return (
+                <div
+                  className={`relative overflow-hidden select-none ${
+                    isDark ? 'bg-gradient-to-br from-[#131028] to-[#1a1535]' : 'bg-gradient-to-br from-[#fdf6e3] to-[#fff8e7]'
+                  }`}
+                  style={{ minHeight: 380, height: 380 }}
+                  onMouseDown={handleMouseDown}
+                  onTouchStart={(e) => { touchStartX = e.touches[0].clientX; }}
+                  onTouchEnd={(e) => {
+                    const dx = e.changedTouches[0].clientX - touchStartX;
+                    if (Math.abs(dx) > 40) goTo(currentIdx + (dx < 0 ? 1 : -1));
+                  }}
+                >
+                  {/* Main image */}
+                  <div
+                    className="absolute inset-0 flex items-center justify-center transition-transform duration-150 ease-out"
+                    style={{ transform: `scale(${scale}) translate(${pos.x / scale}px, ${pos.y / scale}px)` }}
+                  >
+                    {gallery.length > 0 ? (
+                      <img
+                        src={selectedImage || gallery[0]}
+                        alt={product.name}
+                        className="w-full h-full object-contain p-8"
+                        style={{ maxHeight: 380 }}
+                        draggable={false}
+                      />
+                    ) : (
+                      <span className="text-[9rem] leading-none select-none">{product.emoji || '📦'}</span>
+                    )}
+                  </div>
+
+                  {/* Prev / Next arrows — only if multiple images */}
+                  {gallery.length > 1 && (
+                    <>
+                      <button
+                        onClick={() => goTo(currentIdx - 1)}
+                        disabled={currentIdx === 0}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-black/30 backdrop-blur-sm text-white flex items-center justify-center disabled:opacity-20 hover:bg-black/50 transition-all"
+                      >
+                        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M10 12L6 8l4-4"/></svg>
+                      </button>
+                      <button
+                        onClick={() => goTo(currentIdx + 1)}
+                        disabled={currentIdx === gallery.length - 1}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-black/30 backdrop-blur-sm text-white flex items-center justify-center disabled:opacity-20 hover:bg-black/50 transition-all"
+                      >
+                        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 12l4-4-4-4"/></svg>
+                      </button>
+
+                      {/* Dot indicators */}
+                      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex gap-1.5">
+                        {gallery.map((_, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => goTo(idx)}
+                            className={`rounded-full transition-all ${idx === currentIdx ? 'w-5 h-2 bg-white' : 'w-2 h-2 bg-white/40 hover:bg-white/70'}`}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Badges */}
+                  <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
+                    {discountPct > 0 && (
+                      <span className="bg-blue-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg shadow-lg uppercase">
+                        {discountPct}% Off
+                      </span>
+                    )}
+                    {product.isNew && (
+                      <span className="bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg shadow-lg uppercase">
+                        New
+                      </span>
+                    )}
+                    {product.hidden && (
+                      <span className="bg-red-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg shadow-lg uppercase">
+                        Hidden
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Zoom controls */}
+                  <div className="absolute bottom-3 right-3 z-10 flex items-center gap-1 bg-black/20 backdrop-blur-md p-1 rounded-xl">
+                    <button onClick={() => zoom(-0.2)} disabled={scale <= 1} className="p-1.5 text-white disabled:opacity-30"><ZoomOut size={15} /></button>
+                    <button onClick={resetZoom} className="p-1.5 text-white hover:text-blue-300 transition-colors"><RotateCcw size={13} /></button>
+                    <button onClick={() => zoom(0.2)} disabled={scale >= 4} className="p-1.5 text-white disabled:opacity-30"><ZoomIn size={15} /></button>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* ── Info Panel ── */}
             <div className="p-6 sm:p-8 flex flex-col">

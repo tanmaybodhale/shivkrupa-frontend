@@ -6,8 +6,10 @@ import { useTheme } from '@/context/ThemeContext';
 import { useApp } from '@/context/AppContext';
 import ProductCard from './ProductCard';
 import { Product } from '@/lib/types';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const ITEMS_PER_PAGE = 12;
 
 export default function ProductGrid() {
   const { activeCategory, activeSubCategory, activeBrand, sort, priceRange, search } = useProductFilter();
@@ -16,28 +18,34 @@ export default function ProductGrid() {
   const isAdmin = currentUser?.role === 'shopkeeper';
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
+    let cancelled = false;
     const fetchProducts = async () => {
       try {
-        // Admin gets all products including hidden ones; customers only see visible ones
         const url = isAdmin ? `${API_URL}/catalog?admin=true` : `${API_URL}/catalog`;
         const res = await fetch(url);
         const data = await res.json();
-        if (data.success) {
-          setProducts(data.products);
-        }
+        if (!cancelled && data.success) setProducts(data.products);
       } catch (error) {
         console.error('Failed to fetch products:', error);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     fetchProducts();
 
-    const interval = setInterval(fetchProducts, 5000);
-    return () => clearInterval(interval);
+    // Refetch when user comes back to the tab (tab was hidden then visible)
+    const onVisible = () => { if (document.visibilityState === 'visible') fetchProducts(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { cancelled = true; document.removeEventListener('visibilitychange', onVisible); };
   }, [isAdmin]);
+
+  // Reset to page 1 whenever filters change
+  useEffect(() => {
+    setPage(1);
+  }, [activeCategory, activeSubCategory, activeBrand, sort, priceRange, search]);
 
   const filtered = useMemo(() => {
     let list = products.filter(p => {
@@ -66,6 +74,9 @@ export default function ProductGrid() {
 
     return list;
   }, [products, activeCategory, activeSubCategory, activeBrand, sort, priceRange, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+  const paginatedProducts = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
   const catLabel = activeCategory === 'all' ? 'All Items' : activeCategory.charAt(0).toUpperCase() + activeCategory.slice(1);
 
@@ -106,9 +117,81 @@ export default function ProductGrid() {
           <p className="text-sm mt-1">Try a different search or category.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-5">
-          {filtered.map(p => <ProductCard key={p._id || p.id} product={p} />)}
-        </div>
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-5">
+            {paginatedProducts.map(p => <ProductCard key={p._id || p.id} product={p} />)}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-8 flex-wrap">
+              {/* Prev */}
+              <button
+                onClick={() => { setPage(p => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                disabled={page === 1}
+                className={`flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-bold border transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${
+                  isDark
+                    ? 'bg-[#1a1535] border-[#2d2450] text-gray-300 hover:bg-[#251e40] hover:border-indigo-500/50'
+                    : 'bg-white border-orange-200 text-amber-900 hover:bg-orange-50 hover:border-orange-400'
+                }`}
+              >
+                <ChevronLeft size={16} strokeWidth={2.5} />
+                <span className="hidden sm:inline">Prev</span>
+              </button>
+
+              {/* Page numbers */}
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(n => n === 1 || n === totalPages || Math.abs(n - page) <= 1)
+                .reduce<(number | '...')[]>((acc, n, idx, arr) => {
+                  if (idx > 0 && n - (arr[idx - 1] as number) > 1) acc.push('...');
+                  acc.push(n);
+                  return acc;
+                }, [])
+                .map((item, idx) =>
+                  item === '...' ? (
+                    <span key={`ellipsis-${idx}`} className={`px-2 text-sm ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>…</span>
+                  ) : (
+                    <button
+                      key={item}
+                      onClick={() => { setPage(item as number); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                      className={`min-w-[36px] h-9 px-2 rounded-xl text-sm font-bold border transition-all active:scale-95 ${
+                        page === item
+                          ? isDark
+                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-900/30'
+                            : 'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-200'
+                          : isDark
+                            ? 'bg-[#1a1535] border-[#2d2450] text-gray-400 hover:bg-[#251e40] hover:text-gray-200'
+                            : 'bg-white border-orange-100 text-gray-600 hover:bg-orange-50 hover:text-orange-700'
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  )
+                )}
+
+              {/* Next */}
+              <button
+                onClick={() => { setPage(p => Math.min(totalPages, p + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                disabled={page === totalPages}
+                className={`flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-bold border transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${
+                  isDark
+                    ? 'bg-[#1a1535] border-[#2d2450] text-gray-300 hover:bg-[#251e40] hover:border-indigo-500/50'
+                    : 'bg-white border-orange-200 text-amber-900 hover:bg-orange-50 hover:border-orange-400'
+                }`}
+              >
+                <span className="hidden sm:inline">Next</span>
+                <ChevronRight size={16} strokeWidth={2.5} />
+              </button>
+            </div>
+          )}
+
+          {/* Page info */}
+          {totalPages > 1 && (
+            <p className={`text-center text-xs font-medium mt-3 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+              Showing {(page - 1) * ITEMS_PER_PAGE + 1}–{Math.min(page * ITEMS_PER_PAGE, filtered.length)} of {filtered.length} products
+            </p>
+          )}
+        </>
       )}
     </section>
   );

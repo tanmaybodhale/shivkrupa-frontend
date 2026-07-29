@@ -83,6 +83,15 @@ export default function ProductPage() {
   }, [handleMouseMove, handleMouseUp]);
   useEffect(() => { if (scale === 1) { setPos({ x: 0, y: 0 }); posRef.current = { x: 0, y: 0 }; } }, [scale]);
 
+  // Check if there's browser history to go back to (i.e. not opened via shared link)
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      router.back();
+    } else {
+      router.push('/customer');
+    }
+  };
+
   const handleShare = async () => {
     const url = window.location.href;
     if (navigator.share) {
@@ -162,7 +171,7 @@ export default function ProductPage() {
         {/* Back + Share header */}
         <div className="flex items-center justify-between mb-6">
           <button
-            onClick={() => router.back()}
+            onClick={handleBack}
             className={`flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-xl transition-colors ${
               isDark
                 ? 'text-gray-400 hover:text-indigo-300 hover:bg-indigo-500/10'
@@ -170,7 +179,7 @@ export default function ProductPage() {
             }`}
           >
             <ArrowLeft size={16} strokeWidth={2.5} />
-            Back
+            {typeof window !== 'undefined' && window.history.length <= 1 ? 'Home' : 'Back'}
           </button>
           <button
             onClick={handleShare}

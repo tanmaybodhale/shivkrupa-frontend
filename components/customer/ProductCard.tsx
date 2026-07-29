@@ -192,27 +192,27 @@ export default function ProductCard({ product }: Props) {
         )}
 
         {/* Bottom Row: Price & Actions */}
-        <div className="mt-auto pt-2 flex items-end justify-between gap-1">
+        <div className="mt-auto pt-2 flex items-end justify-between gap-1 min-w-0">
 
-          {/* Price */}
-          <div className="flex flex-col shrink-0">
+          {/* Price — fixed max-width handles up to 4-digit prices without overflow */}
+          <div className="flex flex-col min-w-0 max-w-[52px]">
             {discountPct > 0 && (
-              <span className={`text-[10px] line-through font-medium leading-none mb-0.5 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+              <span className={`text-[9px] line-through font-medium leading-none mb-0.5 truncate ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
                 ₹{product.mrp}
               </span>
             )}
-            <span className={`text-[14px] sm:text-[15px] font-black leading-none ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
+            <span className={`text-[12px] font-black leading-none ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
               ₹{product.price}
             </span>
           </div>
 
-          {/* Add/Qty + Share + Wishlist row */}
-          <div className="flex items-center gap-1 shrink-0 min-w-0">
+          {/* Add/Qty + Share + Wishlist row — always stays right, never wraps */}
+          <div className="flex items-center gap-1 flex-shrink-0">
             {/* ❤ Wishlist button */}
             <button
               onClick={async (e) => { e.stopPropagation(); await toggleWishlist(productId); showToast(wished ? '💔 Removed from wishlist' : '❤️ Added to wishlist!'); }}
               title={wished ? 'Remove from wishlist' : 'Add to wishlist'}
-              className={`w-7 h-7 sm:w-7 sm:h-8 rounded-lg flex items-center justify-center border transition-all active:scale-90 shrink-0 ${
+              className={`w-7 h-7 rounded-lg flex items-center justify-center border transition-all active:scale-90 flex-shrink-0 ${
                 wished
                   ? 'bg-red-500/15 border-red-500/40 text-red-500'
                   : isDark
@@ -227,7 +227,7 @@ export default function ProductCard({ product }: Props) {
             <button
               onClick={handleShare}
               title="Share product"
-              className={`w-7 h-7 sm:w-7 sm:h-8 rounded-lg flex items-center justify-center border transition-all active:scale-90 shrink-0 ${
+              className={`w-7 h-7 rounded-lg flex items-center justify-center border transition-all active:scale-90 flex-shrink-0 ${
                 isDark
                   ? 'bg-indigo-500/10 border-indigo-500/25 text-indigo-400 hover:bg-indigo-500/20'
                   : 'bg-orange-50 border-orange-200 text-orange-500 hover:bg-orange-100'
@@ -237,11 +237,11 @@ export default function ProductCard({ product }: Props) {
             </button>
 
             {/* Add / Qty */}
-            <div className="h-[30px] sm:h-[32px] w-[62px] sm:w-[72px] shrink-0">
+            <div className="h-[30px] w-[58px] flex-shrink-0">
               {isOutOfStock ? (
                 <button
                   disabled
-                  className={`w-full h-full rounded-lg text-[10px] sm:text-[11px] font-bold cursor-not-allowed border ${isDark
+                  className={`w-full h-full rounded-lg text-[9px] font-bold cursor-not-allowed border ${isDark
                     ? 'bg-[#13102a] text-gray-600 border-[#2d2450]'
                     : 'bg-gray-100 text-gray-400 border-gray-200'
                   }`}
@@ -255,18 +255,18 @@ export default function ProductCard({ product }: Props) {
                   }`}
                   onClick={e => e.stopPropagation()}
                 >
-                  <button onClick={handleDecrease} className="w-7 h-full flex items-center justify-center hover:bg-black/10 transition-colors active:scale-95">
-                    <Minus size={13} strokeWidth={3} />
+                  <button onClick={handleDecrease} className="flex-1 h-full flex items-center justify-center hover:bg-black/10 transition-colors active:scale-95">
+                    <Minus size={12} strokeWidth={3} />
                   </button>
-                  <span className="flex-1 text-center text-xs font-black select-none">{cartItem.qty}</span>
-                  <button onClick={handleIncrease} className="w-7 h-full flex items-center justify-center hover:bg-black/10 transition-colors active:scale-95">
-                    <Plus size={13} strokeWidth={3} />
+                  <span className="flex-1 text-center text-[11px] font-black select-none">{cartItem.qty}</span>
+                  <button onClick={handleIncrease} className="flex-1 h-full flex items-center justify-center hover:bg-black/10 transition-colors active:scale-95">
+                    <Plus size={12} strokeWidth={3} />
                   </button>
                 </div>
               ) : (
                 <button
                   onClick={e => { e.stopPropagation(); handleAdd(); }}
-                  className={`w-full h-full rounded-lg text-[10px] sm:text-xs font-black border transition-colors shadow-sm active:scale-95 uppercase tracking-wide ${isDark
+                  className={`w-full h-full rounded-lg text-[10px] font-black border transition-colors shadow-sm active:scale-95 uppercase tracking-wide ${isDark
                     ? 'text-indigo-400 bg-indigo-500/10 border-indigo-500/30 hover:bg-indigo-500/20 hover:border-indigo-400/50'
                     : 'text-orange-600 bg-orange-50 border-orange-200 hover:bg-orange-100 hover:border-orange-400'
                   }`}

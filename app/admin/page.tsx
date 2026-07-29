@@ -447,7 +447,7 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                           className={`w-16 py-1 rounded-lg border border-dashed flex items-center justify-center gap-0.5 transition-all text-[9px] font-bold ${isDark ? 'border-[#2d2450] text-indigo-400 hover:border-indigo-500 hover:bg-indigo-500/10' : 'border-orange-200 text-orange-500 hover:border-orange-400 hover:bg-orange-50'} ${uploadingMulti ? 'opacity-60 cursor-wait' : ''}`}
                           title="Add more images"
                         >
-                          {uploadingMulti ? <Loader2 size={10} className="animate-spin" /> : <><Images size={10} />+more</>}
+                          {uploadingMulti ? <Loader2 size={10} className="animate-spin" /> : <><Images size={10} />+ Gallery</>}
                         </button>
                         {/* Extra images strip */}
                         {(editForm.images || []).length > 0 && (
@@ -727,6 +727,13 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                           className={`w-full px-3 py-2 rounded-lg border text-sm font-bold outline-none ${isDark ? 'bg-[#1a1535] border-[#2d2450] text-gray-200' : 'bg-orange-50/30 border-orange-200 text-gray-800'}`}
                           placeholder="Product name"
                         />
+                        <textarea
+                          value={editForm.description || ''}
+                          onChange={e => setEditForm({ ...editForm, description: e.target.value })}
+                          className={`w-full px-3 py-2 rounded-lg border text-xs font-medium outline-none resize-none ${isDark ? 'bg-[#13102a] border-[#2d2450] text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-600'}`}
+                          placeholder="Description (optional)"
+                          rows={2}
+                        />
                         <input
                            type="text"
                            value={editForm.category || ''}
@@ -749,6 +756,36 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                            placeholder="Brand (optional)"
                          />
                      </div>
+                  </div>
+
+                  {/* Multi-image section for mobile */}
+                  <div className="flex flex-col gap-2">
+                     <button
+                       type="button"
+                       onClick={() => multiFileInputRef.current?.click()}
+                       disabled={uploadingMulti}
+                       className={`w-full py-2 rounded-lg border border-dashed flex items-center justify-center gap-1.5 text-xs font-bold transition-all ${
+                         isDark ? 'border-[#2d2450] text-indigo-400 hover:border-indigo-500 hover:bg-indigo-500/10' : 'border-orange-200 text-orange-500 hover:border-orange-400 hover:bg-orange-50'
+                       } ${uploadingMulti ? 'opacity-60 cursor-wait' : ''}`}
+                     >
+                       {uploadingMulti ? <Loader2 size={13} className="animate-spin" /> : <><Images size={13} /> + Add Gallery Images</>}
+                     </button>
+                     {(editForm.images || []).length > 0 && (
+                       <div className="flex flex-wrap gap-2">
+                         {(editForm.images || []).map((img, idx) => (
+                           <div key={idx} className="relative group/thumb">
+                             <img src={img} alt={`img-${idx}`} className="w-10 h-10 rounded-lg object-cover border border-gray-200" />
+                             <button
+                               type="button"
+                               onClick={() => removeExtraImage(idx)}
+                               className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[8px] flex items-center justify-center"
+                             >
+                               <X size={8} />
+                             </button>
+                           </div>
+                         ))}
+                       </div>
+                     )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">

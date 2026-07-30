@@ -194,14 +194,14 @@ export default function ProductCard({ product }: Props) {
         {/* Bottom Row: Price & Actions */}
         <div className="mt-auto pt-2 flex items-end justify-between gap-1 min-w-0">
 
-          {/* Price — fixed max-width handles up to 4-digit prices without overflow */}
-          <div className="flex flex-col min-w-0 max-w-[52px]">
+          {/* Price — flex-1 lets it take available space without overflowing */}
+          <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
             {discountPct > 0 && (
               <span className={`text-[9px] line-through font-medium leading-none mb-0.5 truncate ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
                 ₹{product.mrp}
               </span>
             )}
-            <span className={`text-[12px] font-black leading-none ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
+            <span className={`text-[12px] font-black leading-none truncate ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
               ₹{product.price}
             </span>
           </div>

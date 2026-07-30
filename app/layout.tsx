@@ -5,8 +5,33 @@ import { ThemeProvider } from '@/context/ThemeContext';
 import { LanguageProvider } from '@/context/LanguageContext';
 
 export const metadata: Metadata = {
-  title: 'Shivkrupa Emporium',
-  description: "Pune's Neighbourhood Everything Store — Stationery, Snacks, Gifts & More",
+  title: 'Shivkrupa Emporium — Jalna\'s Favourite Store',
+  description:
+    'Shivkrupa Emporium is Jalna\'s most loved neighbourhood store. Shop stationery, snacks, gifts, household essentials, and more — all under one roof. Fast delivery in Jalna.',
+  keywords: [
+    'Shivkrupa Emporium',
+    'Jalna store',
+    'Jalna favourite store',
+    'stationery Jalna',
+    'grocery Jalna',
+    'gifts Jalna',
+    'snacks Jalna',
+    'household items Jalna',
+    'online shopping Jalna',
+  ],
+  openGraph: {
+    title: 'Shivkrupa Emporium — Jalna\'s Favourite Store',
+    description:
+      'Shivkrupa Emporium is Jalna\'s most loved neighbourhood store. Shop stationery, snacks, gifts, household essentials & more.',
+    url: 'https://shivkrupaemporium.com',
+    siteName: 'Shivkrupa Emporium',
+    locale: 'en_IN',
+    type: 'website',
+  },
+  icons: {
+    icon: '/shivkrupalogo.png',
+    apple: '/shivkrupalogo.png',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

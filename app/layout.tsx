@@ -29,8 +29,8 @@ export const metadata: Metadata = {
     type: 'website',
   },
   icons: {
-    icon: '/shivkrupalogo.png',
-    apple: '/shivkrupalogo.png',
+    icon: '/shivkrupalogo.jpeg',
+    apple: '/shivkrupalogo.jpeg',
   },
 };
 

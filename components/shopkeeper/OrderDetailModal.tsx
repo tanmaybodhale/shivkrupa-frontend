@@ -3,7 +3,8 @@
 import { Order } from '@/lib/types';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/context/ThemeContext';
-import { X, User, Phone, Clock, Package, CheckCircle2, XCircle, Timer, ClipboardCheck, MapPin, Navigation, Truck } from 'lucide-react';
+import { X, User, Phone, Clock, Package, CheckCircle2, XCircle, Timer, ClipboardCheck, MapPin, Navigation, Truck, Printer } from 'lucide-react';
+ import { printReceipt } from './utils/printReceipt';
 
 interface Props {
   order: Order;
@@ -245,11 +246,18 @@ export default function OrderDetailModal({ order, onClose, onUpdated }: Props) {
 
         </div>
 
-        {/* Sticky Footer */}
-        <div className={`p-4 sm:p-5 border-t shrink-0 ${isDark ? 'bg-[#1a1535] border-[#2d2450]' : 'bg-white border-gray-100'}`}>
+       {/* Sticky Footer */}
+        <div className={`p-4 sm:p-5 border-t shrink-0 flex gap-3 ${isDark ? 'bg-[#1a1535] border-[#2d2450]' : 'bg-white border-gray-100'}`}>
+          <button
+            onClick={() => printReceipt(order)}
+            className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl font-black text-base transition-all active:scale-95 border-2 ${isDark ? 'border-indigo-500 text-indigo-400 hover:bg-indigo-500/10' : 'border-orange-500 text-orange-600 hover:bg-orange-50'}`}
+          >
+            <Printer size={18} />
+            Print Receipt
+          </button>
           <button
             onClick={onClose}
-            className={`w-full py-3.5 rounded-xl font-black text-white text-base transition-all active:scale-95 shadow-md ${isDark ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-900 hover:bg-black'}`}
+            className={`flex-1 py-3.5 rounded-xl font-black text-white text-base transition-all active:scale-95 shadow-md ${isDark ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-900 hover:bg-black'}`}
           >
             Done
           </button>

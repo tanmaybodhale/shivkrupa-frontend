@@ -98,7 +98,7 @@ function OrderProgressBar({ status, isDark }: { status: string; isDark: boolean 
 }
 
 export default function CustomerOrdersPage() {
-  const { currentUser, orders, fetchOrders, showToast } = useApp();
+  const { currentUser, orders, fetchOrders, showToast, updateOrderStatus } = useApp();
   const { isDark } = useTheme();
   const { t } = useLang();
   const router = useRouter();
@@ -131,6 +131,14 @@ export default function CustomerOrdersPage() {
 
     return () => clearInterval(interval);
   }, [currentUser, fetchOrders, mounted]);
+
+  const handleCancelOrder = async (orderId: string) => {
+    const confirmed = window.confirm('Are you sure you want to cancel this order?');
+    if (!confirmed) return;
+    await updateOrderStatus(orderId, 'cancelled');
+    showToast('Order cancelled successfully');
+    fetchOrders();
+  };
 
   if (!currentUser || currentUser.role !== 'customer') return null;
 
@@ -277,6 +285,18 @@ export default function CustomerOrdersPage() {
                       <span className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                         {[order.deliveryAddress.street, order.deliveryAddress.area, order.deliveryAddress.city].filter(Boolean).join(', ')}
                       </span>
+                    </div>
+                  )}
+
+                  {/* Cancel Order Button */}
+                  {(order.status === 'pending' || order.status === 'confirmed') && (
+                    <div className="px-5 pb-4">
+                      <button
+                        onClick={() => handleCancelOrder(order.orderId)}
+                        className={`w-full py-2.5 rounded-xl text-sm font-bold border-2 transition-all active:scale-95 ${isDark ? 'border-red-500/40 text-red-400 hover:bg-red-500/10' : 'border-red-200 text-red-600 hover:bg-red-50'}`}
+                      >
+                        Cancel Order
+                      </button>
                     </div>
                   )}
 

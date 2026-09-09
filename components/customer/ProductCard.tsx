@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Product } from '@/lib/types';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useLang } from '@/context/LanguageContext';
-import { Plus, Minus, EyeOff, Share2, Heart } from 'lucide-react';
+import { Plus, Minus, EyeOff, Share2, Heart, MoreVertical } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
@@ -19,6 +19,8 @@ export default function ProductCard({ product }: Props) {
   const router = useRouter();
   const [hidden, setHidden] = useState(!!product.hidden);
   const [loadingHide, setLoadingHide] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const isAdmin = currentUser?.role === 'shopkeeper';
   const productId = product._id || String(product.id || '');
@@ -39,6 +41,18 @@ export default function ProductCard({ product }: Props) {
 
   const productUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/product/${productId}`;
 
+  // Close the menu when clicking anywhere outside it
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuOpen]);
+
   const handleAdd = () => {
     if (isOutOfStock) { showToast('❌ This item is out of stock'); return; }
     addToCart(product);
@@ -53,6 +67,7 @@ export default function ProductCard({ product }: Props) {
 
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    setMenuOpen(false);
     const shareData = { title: product.name, text: `Check out ${product.name} for ₹${product.price} at Shivkrupa!`, url: productUrl };
     if (navigator.share) {
       try { await navigator.share(shareData); }
@@ -64,6 +79,13 @@ export default function ProductCard({ product }: Props) {
     navigator.clipboard.writeText(productUrl)
       .then(() => showToast('🔗 Link copied!'))
       .catch(() => showToast('🔗 ' + productUrl));
+  };
+
+  const handleWishlistClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMenuOpen(false);
+    await toggleWishlist(productId);
+    showToast(wished ? '💔 Removed from wishlist' : '❤️ Added to wishlist!');
   };
 
   // Admin-only: persist hide to backend
@@ -206,35 +228,51 @@ export default function ProductCard({ product }: Props) {
             </span>
           </div>
 
-          {/* Add/Qty + Share + Wishlist row — always stays right, never wraps */}
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {/* ❤ Wishlist button */}
+          {/* More-options menu + Add/Qty row — always stays right, never wraps */}
+          <div className="flex items-center gap-1 flex-shrink-0 relative" ref={menuRef}>
+            {/* ⋮ More options button */}
             <button
-              onClick={async (e) => { e.stopPropagation(); await toggleWishlist(productId); showToast(wished ? '💔 Removed from wishlist' : '❤️ Added to wishlist!'); }}
-              title={wished ? 'Remove from wishlist' : 'Add to wishlist'}
+              onClick={(e) => { e.stopPropagation(); setMenuOpen(o => !o); }}
+              title="More options"
               className={`w-7 h-7 rounded-lg flex items-center justify-center border transition-all active:scale-90 flex-shrink-0 ${
                 wished
                   ? 'bg-red-500/15 border-red-500/40 text-red-500'
                   : isDark
-                    ? 'bg-[#1a1535] border-[#2d2450] text-gray-600 hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/10'
-                    : 'bg-orange-50 border-orange-200 text-gray-300 hover:text-red-500 hover:border-red-200 hover:bg-red-50'
+                    ? 'bg-[#1a1535] border-[#2d2450] text-gray-400 hover:text-indigo-400 hover:border-indigo-500/30'
+                    : 'bg-orange-50 border-orange-200 text-gray-500 hover:text-orange-600 hover:border-orange-300'
               }`}
             >
-              <Heart size={11} strokeWidth={2.5} fill={wished ? 'currentColor' : 'none'} />
+              <MoreVertical size={14} strokeWidth={2.5} />
             </button>
 
-            {/* Share button */}
-            <button
-              onClick={handleShare}
-              title="Share product"
-              className={`w-7 h-7 rounded-lg flex items-center justify-center border transition-all active:scale-90 flex-shrink-0 ${
-                isDark
-                  ? 'bg-indigo-500/10 border-indigo-500/25 text-indigo-400 hover:bg-indigo-500/20'
-                  : 'bg-orange-50 border-orange-200 text-orange-500 hover:bg-orange-100'
-              }`}
-            >
-              <Share2 size={11} strokeWidth={2.5} />
-            </button>
+            {/* Dropdown menu */}
+            {menuOpen && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className={`absolute bottom-9 right-0 z-40 min-w-[160px] rounded-xl border shadow-lg overflow-hidden ${
+                  isDark ? 'bg-[#1a1535] border-[#2d2450]' : 'bg-white border-gray-200'
+                }`}
+              >
+                <button
+                  onClick={handleWishlistClick}
+                  className={`w-full flex items-center gap-2 px-3 py-2.5 text-[12px] font-bold transition-colors ${
+                    isDark ? 'text-gray-200 hover:bg-red-500/10' : 'text-gray-700 hover:bg-red-50'
+                  }`}
+                >
+                  <Heart size={14} strokeWidth={2.5} className={wished ? 'text-red-500' : ''} fill={wished ? 'currentColor' : 'none'} />
+                  {wished ? 'Remove from Wishlist' : 'Add to Wishlist'}
+                </button>
+                <button
+                  onClick={handleShare}
+                  className={`w-full flex items-center gap-2 px-3 py-2.5 text-[12px] font-bold transition-colors border-t ${
+                    isDark ? 'text-gray-200 border-[#2d2450] hover:bg-indigo-500/10' : 'text-gray-700 border-gray-100 hover:bg-orange-50'
+                  }`}
+                >
+                  <Share2 size={14} strokeWidth={2.5} />
+                  Share
+                </button>
+              </div>
+            )}
 
             {/* Add / Qty */}
             <div className="h-[30px] w-[58px] flex-shrink-0">

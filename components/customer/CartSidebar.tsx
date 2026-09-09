@@ -7,7 +7,6 @@ import { useTheme } from '@/context/ThemeContext';
 import { useLang } from '@/context/LanguageContext';
 import { FREE_DELIVERY_THRESHOLD, DELIVERY_CHARGE } from '@/lib/data';
 import BillModal from '@/components/shared/BillModal';
-import LocationPicker from './LocationPicker';
 import { Order, Product } from '@/lib/types';
 import { X, ShoppingBag, Truck, Banknote, CreditCard, Minus, Plus, MapPin } from 'lucide-react';
 
@@ -43,7 +42,6 @@ export default function CartSidebar() {
     city: '',
     state: '',
     pincode: '',
-    location: undefined as { lat: number; lng: number } | undefined,
   };
   const [deliveryAddress, setDeliveryAddress] = useState(defaultAddress);
 
@@ -61,10 +59,10 @@ export default function CartSidebar() {
   const handleCheckout = async () => {
     if (cart.length === 0) { showToast('❌ Cart is empty!'); return; }
 
-    const hasAddress = deliveryAddress.street.trim() && deliveryAddress.area.trim() && 
+    const hasAddress = deliveryAddress.street.trim() &&
       deliveryAddress.city.trim() && deliveryAddress.state.trim() && deliveryAddress.pincode.trim();
     if (!hasAddress) {
-      showToast('❌ Please add delivery address!');
+      showToast('❌ Please fill all required address fields!');
       setShowAddressForm(true);
       return;
     }
@@ -315,25 +313,32 @@ export default function CartSidebar() {
                 {showAddressForm && (
                   <div className={`space-y-3 p-3 rounded-xl border ${isDark ? 'bg-emerald-900/10 border-emerald-900/20' : 'bg-emerald-50 border-emerald-100'
                     }`}>
-                    {['street', 'area'].map(field => (
-                      <input
-                        key={field}
-                        type="text"
-                        placeholder={field === 'street' ? 'Street Address' : 'Area / Landmark'}
-                        value={(deliveryAddress as any)[field]}
-                        onChange={(e) => setDeliveryAddress({ ...deliveryAddress, [field]: e.target.value })}
-                        className={`w-full px-3 py-2 text-sm rounded-lg border focus:outline-none ${isDark
-                          ? 'bg-[#13102a] border-[#2d2450] text-gray-200 placeholder-gray-600 focus:border-indigo-500'
-                          : 'bg-white border-emerald-200 focus:border-emerald-400'
-                          }`}
-                      />
-                    ))}
+                    <input
+                      type="text"
+                      placeholder="Street Address *"
+                      value={deliveryAddress.street}
+                      onChange={(e) => setDeliveryAddress({ ...deliveryAddress, street: e.target.value })}
+                      className={`w-full px-3 py-2 text-sm rounded-lg border focus:outline-none ${isDark
+                        ? 'bg-[#13102a] border-[#2d2450] text-gray-200 placeholder-gray-600 focus:border-indigo-500'
+                        : 'bg-white border-emerald-200 focus:border-emerald-400'
+                        }`}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Area / Landmark (optional)"
+                      value={deliveryAddress.area}
+                      onChange={(e) => setDeliveryAddress({ ...deliveryAddress, area: e.target.value })}
+                      className={`w-full px-3 py-2 text-sm rounded-lg border focus:outline-none ${isDark
+                        ? 'bg-[#13102a] border-[#2d2450] text-gray-200 placeholder-gray-600 focus:border-indigo-500'
+                        : 'bg-white border-emerald-200 focus:border-emerald-400'
+                        }`}
+                    />
                     <div className="grid grid-cols-2 gap-2">
                       {['city', 'state'].map(field => (
                         <input
                           key={field}
                           type="text"
-                          placeholder={field.charAt(0).toUpperCase() + field.slice(1)}
+                          placeholder={`${field.charAt(0).toUpperCase() + field.slice(1)} *`}
                           value={(deliveryAddress as any)[field]}
                           onChange={(e) => setDeliveryAddress({ ...deliveryAddress, [field]: e.target.value })}
                           className={`w-full px-3 py-2 text-sm rounded-lg border focus:outline-none ${isDark
@@ -345,7 +350,7 @@ export default function CartSidebar() {
                     </div>
                     <input
                       type="text"
-                      placeholder="Pincode"
+                      placeholder="Pincode *"
                       value={deliveryAddress.pincode}
                       onChange={(e) => setDeliveryAddress({ ...deliveryAddress, pincode: e.target.value })}
                       className={`w-full px-3 py-2 text-sm rounded-lg border focus:outline-none ${isDark
@@ -353,16 +358,6 @@ export default function CartSidebar() {
                         : 'bg-white border-emerald-200 focus:border-emerald-400'
                         }`}
                     />
-
-                    <div>
-                      <p className={`text-[10px] uppercase tracking-wider font-bold mb-2 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                        📍 Pick Location
-                      </p>
-                      <LocationPicker
-                        location={deliveryAddress.location || null}
-                        onLocationChange={(loc) => setDeliveryAddress({ ...deliveryAddress, location: loc || undefined })}
-                      />
-                    </div>
                   </div>
                 )}
               </div>

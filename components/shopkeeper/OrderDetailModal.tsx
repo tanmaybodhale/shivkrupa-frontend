@@ -4,7 +4,7 @@ import { Order } from '@/lib/types';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/context/ThemeContext';
 import { X, User, Phone, Clock, Package, CheckCircle2, XCircle, Timer, ClipboardCheck, MapPin, Navigation, Truck, Printer } from 'lucide-react';
- import { printReceipt } from './utils/printReceipt';
+import { printReceipt } from './utils/printReceipt';
 
 interface Props {
   order: Order;
@@ -17,6 +17,7 @@ export default function OrderDetailModal({ order, onClose, onUpdated }: Props) {
   const { isDark } = useTheme();
 
   const handleStatus = (status: Order['status']) => {
+    if (order.status === 'cancelled') return;
     updateOrderStatus(order.orderId, status);
     const updated: Order = { ...order, status };
     onUpdated(updated);
@@ -229,12 +230,14 @@ export default function OrderDetailModal({ order, onClose, onUpdated }: Props) {
               {(['pending', 'confirmed', 'dispatched', 'delivered', 'cancelled'] as Order['status'][]).map(s => {
                 const isActive = order.status === s;
                 const config = getStatusConfig(s, isActive);
+                const isLocked = order.status === 'cancelled';
 
                 return (
                   <button
                     key={s}
                     onClick={() => handleStatus(s)}
-                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-bold transition-all border ${config.style} active:scale-95 capitalize`}
+                    disabled={isLocked}
+                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-bold transition-all border ${config.style} active:scale-95 capitalize ${isLocked ? 'opacity-40 cursor-not-allowed' : ''}`}
                   >
                     {config.icon}
                     {s}
@@ -242,6 +245,11 @@ export default function OrderDetailModal({ order, onClose, onUpdated }: Props) {
                 );
               })}
             </div>
+            {order.status === 'cancelled' && (
+              <p className="text-xs font-semibold text-red-500 mt-2 text-center">
+                This order was cancelled and can no longer be updated.
+              </p>
+            )}
           </div>
 
         </div>

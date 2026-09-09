@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useLang } from '@/context/LanguageContext';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, PartyPopper } from 'lucide-react';
 import Confetti from './Confetti';
 
 const MAX_THUMBS = 3;
@@ -15,6 +15,7 @@ export default function MiniCartBar() {
   const { t } = useLang();
 
   const [showConfetti, setShowConfetti] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
   const [visible, setVisible] = useState(false);
   const wasFreeDelivery = useRef(false);
   const prevCartLength = useRef(0);
@@ -41,10 +42,14 @@ export default function MiniCartBar() {
     prevCartLength.current = cart.length;
   }, [cart.length]);
 
-  // Fire confetti exactly once, on the transition into "free delivery unlocked".
+  // Fire confetti + celebration banner exactly once, on the transition into
+  // "free delivery unlocked".
   useEffect(() => {
     if (freeDelivery && !wasFreeDelivery.current) {
       setShowConfetti(true);
+      setShowCelebration(true);
+      const timer = setTimeout(() => setShowCelebration(false), 3000);
+      return () => clearTimeout(timer);
     }
     wasFreeDelivery.current = freeDelivery;
   }, [freeDelivery]);
@@ -54,6 +59,22 @@ export default function MiniCartBar() {
   return (
     <>
       <Confetti fire={showConfetti} onComplete={() => setShowConfetti(false)} />
+
+      {/* Celebration banner */}
+      {showCelebration && (
+        <div className="fixed top-20 left-0 right-0 z-[250] px-4 pointer-events-none flex justify-center">
+          <div
+            className={`animate-celebration-pop flex items-center gap-2 px-5 py-3 rounded-2xl shadow-2xl border font-black text-sm ${
+              isDark
+                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 shadow-emerald-900/40'
+                : 'bg-emerald-50 border-emerald-300 text-emerald-700 shadow-emerald-900/10'
+            }`}
+          >
+            <PartyPopper size={18} />
+            Congratulations! You've unlocked free delivery 🎉
+          </div>
+        </div>
+      )}
 
       <div className="fixed bottom-0 left-0 right-0 z-[150] px-3 pb-3 sm:px-4 sm:pb-4 pointer-events-none">
         <div
@@ -138,6 +159,30 @@ export default function MiniCartBar() {
         }
         .animate-slide-up-once {
           animation: slide-up-once 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        @keyframes celebration-pop {
+          0% {
+            transform: translateY(-20px) scale(0.9);
+            opacity: 0;
+          }
+          15% {
+            transform: translateY(0) scale(1.03);
+            opacity: 1;
+          }
+          25% {
+            transform: translateY(0) scale(1);
+          }
+          85% {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(-10px) scale(0.97);
+            opacity: 0;
+          }
+        }
+        .animate-celebration-pop {
+          animation: celebration-pop 3s ease-in-out forwards;
         }
       `}</style>
     </>

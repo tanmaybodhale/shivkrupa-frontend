@@ -22,9 +22,13 @@ type SortField = 'newest' | 'oldest' | 'amount-high' | 'amount-low' | 'status' |
 export default function OrdersTable() {
   const { orders } = useApp();
   const { isDark } = useTheme();
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [sortBy, setSortBy] = useState<SortField>('newest');
+
+  // Always derive the selected order from the live `orders` list instead of
+  // freezing a snapshot at click-time, so the modal never shows stale data.
+  const selectedOrder = orders.find(o => o.orderId === selectedOrderId) || null;
 
   const todayKey = dateKey(new Date());
   const yesterdayKey = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return dateKey(d); })();
@@ -214,7 +218,7 @@ export default function OrdersTable() {
                 </thead>
                 <tbody className={`divide-y ${isDark ? 'divide-[#2d2450]' : 'divide-gray-100'}`}>
                   {filteredOrders.map((order) => (
-                    <tr key={order.orderId} onClick={() => setSelectedOrder(order)}
+                    <tr key={order.orderId} onClick={() => setSelectedOrderId(order.orderId)}
                       className={`transition-colors cursor-pointer group ${isDark ? 'hover:bg-indigo-500/5' : 'hover:bg-orange-50/30'}`}>
                       <td className="px-6 py-4">
                         <span className={`text-[11px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md border ${isDark ? 'bg-indigo-900/30 text-indigo-300 border-indigo-500/30' : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
@@ -250,7 +254,7 @@ export default function OrdersTable() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button
-                          onClick={(e) => { e.stopPropagation(); setSelectedOrder(order); }}
+                          onClick={(e) => { e.stopPropagation(); setSelectedOrderId(order.orderId); }}
                           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm ${isDark
                             ? 'text-indigo-400 bg-indigo-500/10 border border-indigo-500/30 group-hover:bg-indigo-500 group-hover:text-white'
                             : 'text-orange-600 bg-orange-50 border border-orange-200 group-hover:bg-orange-500 group-hover:text-white'
@@ -270,7 +274,7 @@ export default function OrdersTable() {
               {filteredOrders.map((order) => (
                 <div 
                   key={order.orderId} 
-                  onClick={() => setSelectedOrder(order)}
+                  onClick={() => setSelectedOrderId(order.orderId)}
                   className={`p-4 flex flex-col gap-3 transition-colors cursor-pointer ${isDark ? 'hover:bg-indigo-500/5' : 'hover:bg-orange-50/30'}`}
                 >
                   <div className="flex justify-between items-start">
@@ -312,8 +316,8 @@ export default function OrdersTable() {
       {selectedOrder && (
         <OrderDetailModal
           order={selectedOrder}
-          onClose={() => setSelectedOrder(null)}
-          onUpdated={(updated) => setSelectedOrder(updated)}
+          onClose={() => setSelectedOrderId(null)}
+          onUpdated={() => { /* live data comes from `orders` via selectedOrderId now */ }}
         />
       )}
     </>

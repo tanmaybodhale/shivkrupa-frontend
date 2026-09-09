@@ -60,7 +60,7 @@ export default function AdminPage() {
   // Poll for new orders every 15 seconds for notifications
   useEffect(() => {
     if (!mounted || currentUser?.role !== 'shopkeeper') return;
-    const interval = setInterval(fetchOrders, 15000);
+    const interval = setInterval(fetchOrders, 5000);
     return () => clearInterval(interval);
   }, [mounted, currentUser]);
 

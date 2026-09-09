@@ -10,6 +10,7 @@ import CategoryRow from '@/components/customer/CategoryRow';
 import FiltersRow from '@/components/customer/FiltersRow';
 import ProductGrid from '@/components/customer/ProductGrid';
 import CartSidebar from '@/components/customer/CartSidebar';
+import MiniCartBar from '@/components/customer/MiniCartBar';
 import BillModal from '@/components/shared/BillModal';
 import Toast from '@/components/shared/Toast';
 import { useLang } from '@/context/LanguageContext';
@@ -88,6 +89,7 @@ export default function CustomerPage() {
 
       {/* Overlays & Modals */}
       <CartSidebar />
+      <MiniCartBar />
       <BillModal />
       <Toast />
 

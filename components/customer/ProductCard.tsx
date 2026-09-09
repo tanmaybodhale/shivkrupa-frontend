@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Product } from '@/lib/types';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -20,6 +21,8 @@ export default function ProductCard({ product }: Props) {
   const [hidden, setHidden] = useState(!!product.hidden);
   const [loadingHide, setLoadingHide] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const isAdmin = currentUser?.role === 'shopkeeper';
@@ -41,11 +44,62 @@ export default function ProductCard({ product }: Props) {
 
   const productUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/product/${productId}`;
 
-  // Close the menu when clicking anywhere outside it
+  // Calculate a safe on-screen position for the menu every time it opens,
+  // and keep it correct on scroll/resize. This works no matter how many
+  // menu items are added later, because it always measures the real
+  // rendered menu size and nudges it back inside the viewport.
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const reposition = () => {
+      const btn = menuButtonRef.current;
+      const menu = menuRef.current;
+      if (!btn) return;
+
+      const btnRect = btn.getBoundingClientRect();
+      const menuWidth = menu?.offsetWidth ?? 170;
+      const menuHeight = menu?.offsetHeight ?? 90;
+      const margin = 8;
+
+      // Default: open above the button, right-aligned to it
+      let top = btnRect.top - menuHeight - 6;
+      let left = btnRect.right - menuWidth;
+
+      // If it would go off the top of the screen, open below instead
+      if (top < margin) {
+        top = btnRect.bottom + 6;
+      }
+      // If opening below would go off the bottom, clamp it back up
+      if (top + menuHeight > window.innerHeight - margin) {
+        top = Math.max(margin, window.innerHeight - menuHeight - margin);
+      }
+      // Keep it inside the left/right edges of the screen
+      if (left < margin) left = margin;
+      if (left + menuWidth > window.innerWidth - margin) {
+        left = window.innerWidth - menuWidth - margin;
+      }
+
+      setMenuPos({ top, left });
+    };
+
+    reposition();
+    window.addEventListener('scroll', reposition, true);
+    window.addEventListener('resize', reposition);
+    return () => {
+      window.removeEventListener('scroll', reposition, true);
+      window.removeEventListener('resize', reposition);
+    };
+  }, [menuOpen]);
+
+  // Close the menu when clicking anywhere outside it (or its trigger button)
   useEffect(() => {
     if (!menuOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        menuRef.current && !menuRef.current.contains(target) &&
+        menuButtonRef.current && !menuButtonRef.current.contains(target)
+      ) {
         setMenuOpen(false);
       }
     };
@@ -229,9 +283,10 @@ export default function ProductCard({ product }: Props) {
           </div>
 
           {/* More-options menu + Add/Qty row — always stays right, never wraps */}
-          <div className="flex items-center gap-1 flex-shrink-0 relative" ref={menuRef}>
+          <div className="flex items-center gap-1 flex-shrink-0">
             {/* ⋮ More options button */}
             <button
+              ref={menuButtonRef}
               onClick={(e) => { e.stopPropagation(); setMenuOpen(o => !o); }}
               title="More options"
               className={`w-7 h-7 rounded-lg flex items-center justify-center border transition-all active:scale-90 flex-shrink-0 ${
@@ -244,35 +299,6 @@ export default function ProductCard({ product }: Props) {
             >
               <MoreVertical size={14} strokeWidth={2.5} />
             </button>
-
-            {/* Dropdown menu */}
-            {menuOpen && (
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className={`absolute bottom-9 right-0 z-40 min-w-[160px] rounded-xl border shadow-lg overflow-hidden ${
-                  isDark ? 'bg-[#1a1535] border-[#2d2450]' : 'bg-white border-gray-200'
-                }`}
-              >
-                <button
-                  onClick={handleWishlistClick}
-                  className={`w-full flex items-center gap-2 px-3 py-2.5 text-[12px] font-bold transition-colors ${
-                    isDark ? 'text-gray-200 hover:bg-red-500/10' : 'text-gray-700 hover:bg-red-50'
-                  }`}
-                >
-                  <Heart size={14} strokeWidth={2.5} className={wished ? 'text-red-500' : ''} fill={wished ? 'currentColor' : 'none'} />
-                  {wished ? 'Remove from Wishlist' : 'Add to Wishlist'}
-                </button>
-                <button
-                  onClick={handleShare}
-                  className={`w-full flex items-center gap-2 px-3 py-2.5 text-[12px] font-bold transition-colors border-t ${
-                    isDark ? 'text-gray-200 border-[#2d2450] hover:bg-indigo-500/10' : 'text-gray-700 border-gray-100 hover:bg-orange-50'
-                  }`}
-                >
-                  <Share2 size={14} strokeWidth={2.5} />
-                  Share
-                </button>
-              </div>
-            )}
 
             {/* Add / Qty */}
             <div className="h-[30px] w-[58px] flex-shrink-0">
@@ -323,6 +349,47 @@ export default function ProductCard({ product }: Props) {
           </p>
         )}
       </div>
+
+      {/* Dropdown menu — rendered via portal directly into <body>, so it can
+          NEVER be clipped by this card's overflow-hidden, and always
+          repositions itself to stay fully on-screen. Add more <button>
+          items inside freely in future; positioning stays correct. */}
+      {menuOpen && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={menuRef}
+          onClick={(e) => e.stopPropagation()}
+          style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 9999 }}
+          className={`min-w-[170px] rounded-xl border shadow-lg overflow-hidden ${
+            isDark ? 'bg-[#1a1535] border-[#2d2450]' : 'bg-white border-gray-200'
+          }`}
+        >
+          <button
+            onClick={handleWishlistClick}
+            className={`w-full flex items-center gap-2 px-3 py-2.5 text-[12px] font-bold transition-colors ${
+              isDark ? 'text-gray-200 hover:bg-red-500/10' : 'text-gray-700 hover:bg-red-50'
+            }`}
+          >
+            <Heart size={14} strokeWidth={2.5} className={wished ? 'text-red-500' : ''} fill={wished ? 'currentColor' : 'none'} />
+            {wished ? 'Remove from Wishlist' : 'Add to Wishlist'}
+          </button>
+          <button
+            onClick={handleShare}
+            className={`w-full flex items-center gap-2 px-3 py-2.5 text-[12px] font-bold transition-colors border-t ${
+              isDark ? 'text-gray-200 border-[#2d2450] hover:bg-indigo-500/10' : 'text-gray-700 border-gray-100 hover:bg-orange-50'
+            }`}
+          >
+            <Share2 size={14} strokeWidth={2.5} />
+            Share
+          </button>
+          {/* Add future menu items here, e.g.:
+          <button className="w-full flex items-center gap-2 px-3 py-2.5 text-[12px] font-bold ...">
+            <SomeIcon size={14} /> New Option
+          </button>
+          The positioning logic above already accounts for any resulting
+          height/width change automatically. */}
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

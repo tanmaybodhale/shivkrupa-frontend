@@ -29,6 +29,7 @@ export default function ProductClient() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [related, setRelated] = useState<Product[]>([]);
 
   // Zoom / pan
   const [scale, setScale] = useState(1);
@@ -58,6 +59,22 @@ export default function ProductClient() {
       }
     };
     fetch_();
+  }, [id]);
+
+  // Fetch "People also buy" suggestions — ranked by co-purchase frequency,
+  // falls back to same-category products server-side if history is thin.
+  useEffect(() => {
+    if (!id) return;
+    const fetchRelated = async () => {
+      try {
+        const res = await fetch(`${API_URL}/catalog/${id}/related`);
+        const data = await res.json();
+        if (data.success) setRelated(data.products);
+      } catch {
+        // Silently ignore — section just won't render
+      }
+    };
+    fetchRelated();
   }, [id]);
 
   const resetZoom = () => { setScale(1); setPos({ x: 0, y: 0 }); posRef.current = { x: 0, y: 0 }; };
@@ -410,6 +427,67 @@ export default function ProductClient() {
             </div>
           </div>
         </div>
+
+        {/* People also buy */}
+        {related.length > 0 && (
+          <div className="mt-8">
+            <h3 className={`text-lg font-black mb-4 ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
+              People also buy
+            </h3>
+            <div
+              className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {related.map(item => {
+                const itemId = item._id || String(item.id || '');
+                const itemHasImage = item.image && item.image.startsWith('http');
+                const itemDiscount = item.mrp > item.price
+                  ? Math.round(((item.mrp - item.price) / item.mrp) * 100)
+                  : 0;
+
+                return (
+                  <button
+                    key={itemId}
+                    onClick={() => router.push(`/product/${itemId}`)}
+                    className={`shrink-0 w-36 text-left rounded-2xl border overflow-hidden transition-all active:scale-[0.98] ${
+                      isDark ? 'bg-[#1a1535] border-[#2d2450] hover:border-indigo-500/40' : 'bg-white border-orange-100 hover:border-orange-300'
+                    }`}
+                  >
+                    <div
+                      className="w-full h-28 flex items-center justify-center text-4xl"
+                      style={{
+                        background: isDark
+                          ? 'linear-gradient(135deg, #13102a, #1a1535)'
+                          : 'linear-gradient(135deg, #fdf6e3, #fff8e7)',
+                      }}
+                    >
+                      {itemHasImage ? (
+                        <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                      ) : (
+                        item.emoji || '📦'
+                      )}
+                    </div>
+                    <div className="p-2.5">
+                      <p className={`text-[11px] font-bold leading-snug line-clamp-2 mb-1 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
+                        {item.name}
+                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-[12px] font-black ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
+                          ₹{item.price}
+                        </span>
+                        {itemDiscount > 0 && (
+                          <span className={`text-[9px] line-through ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+                            ₹{item.mrp}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       <CartSidebar />

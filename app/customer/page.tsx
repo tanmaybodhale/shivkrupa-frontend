@@ -14,6 +14,7 @@ import MiniCartBar from '@/components/customer/MiniCartBar';
 import BillModal from '@/components/shared/BillModal';
 import Toast from '@/components/shared/Toast';
 import { useLang } from '@/context/LanguageContext';
+import CategoryShowcase from '@/components/customer/CategoryShowcase';
 
 export default function CustomerPage() {
   const { setCartOpen } = useApp();
@@ -71,6 +72,14 @@ export default function CustomerPage() {
           <div className="pt-2">
             <FiltersRow />
           </div>
+        </section>
+
+        {/* Shop by category — Amazon-style card grid with real product photo thumbnails */}
+        <section className="space-y-4 pt-2">
+          <h2 className={`text-xl sm:text-2xl font-display font-extrabold tracking-tight ${isDark ? 'text-gray-100' : 'text-amber-950'}`}>
+            Shop by category
+          </h2>
+          <CategoryShowcase />
         </section>
 
         {/* Main Product Display */}

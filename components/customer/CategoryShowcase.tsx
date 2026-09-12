@@ -79,9 +79,11 @@ export default function CategoryShowcase() {
   if (cards.length === 0) return null;
 
   return (
-    <div
-      className="flex gap-4 overflow-x-auto pb-3 -mx-4 px-4 sm:mx-0 sm:px-0"
-      style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+       <div
+      className={`flex gap-4 overflow-x-auto pb-3 -mx-4 px-4 sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full ${
+        isDark ? '[&::-webkit-scrollbar-thumb]:bg-[#2d2450]' : '[&::-webkit-scrollbar-thumb]:bg-orange-200'
+      }`}
+      style={{ scrollbarWidth: 'thin' }}
     >
       {cards.map(card => {
         const label = card.category.charAt(0).toUpperCase() + card.category.slice(1);

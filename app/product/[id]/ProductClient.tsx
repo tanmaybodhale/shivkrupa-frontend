@@ -434,9 +434,11 @@ export default function ProductClient() {
             <h3 className={`text-lg font-black mb-4 ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
               People also buy
             </h3>
-            <div
-              className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                        <div
+              className={`flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full ${
+                isDark ? '[&::-webkit-scrollbar-thumb]:bg-[#2d2450]' : '[&::-webkit-scrollbar-thumb]:bg-orange-200'
+              }`}
+              style={{ scrollbarWidth: 'thin' }}
             >
               {related.map(item => {
                 const itemId = item._id || String(item.id || '');

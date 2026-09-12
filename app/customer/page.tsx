@@ -59,6 +59,14 @@ export default function CustomerPage() {
           <DeliveryBar />
         </section>
 
+        {/* Shop by category — Amazon-style card grid with real product photo thumbnails */}
+        <section className="space-y-4 pt-2">
+          <h2 className={`text-xl sm:text-2xl font-display font-extrabold tracking-tight ${isDark ? 'text-gray-100' : 'text-amber-950'}`}>
+            Shop by category
+          </h2>
+          <CategoryShowcase />
+        </section>
+
         {/* Discovery Section: Categories & Filters */}
         <section className="space-y-4 pt-2">
           <div className="flex items-center justify-between">
@@ -72,14 +80,6 @@ export default function CustomerPage() {
           <div className="pt-2">
             <FiltersRow />
           </div>
-        </section>
-
-        {/* Shop by category — Amazon-style card grid with real product photo thumbnails */}
-        <section className="space-y-4 pt-2">
-          <h2 className={`text-xl sm:text-2xl font-display font-extrabold tracking-tight ${isDark ? 'text-gray-100' : 'text-amber-950'}`}>
-            Shop by category
-          </h2>
-          <CategoryShowcase />
         </section>
 
         {/* Main Product Display */}

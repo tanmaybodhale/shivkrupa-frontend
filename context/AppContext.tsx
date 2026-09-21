@@ -22,6 +22,21 @@ const ls = {
   },
 };
 
+// Parses a fetch Response as JSON safely. If the server didn't actually
+// send JSON back (wrong API URL, CORS block, route not mounted, a 502
+// from the host, etc.) this logs the real body instead of throwing an
+// opaque "Unexpected token < in JSON" error that gets swallowed into a
+// generic message.
+async function parseJsonResponse(res: Response, context: string): Promise<{ success: boolean; message?: string; [key: string]: unknown }> {
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    const text = await res.text();
+    console.error(`[${context}] Expected JSON but got "${contentType}" (status ${res.status}). Body:`, text.slice(0, 500));
+    throw new Error(`Unexpected response from server (status ${res.status}). Check NEXT_PUBLIC_API_URL and CORS config.`);
+  }
+  return res.json();
+}
+
 // ─── types ──────────────────────────────────────────────────
 interface AppState {
   currentUser: User | null;
@@ -96,18 +111,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const signup = async (name: string, phone: string, email: string, pass: string, address?: User['address']): Promise<string | null> => {
     if (!name || !phone || !pass) return 'Please fill all required fields';
     if (!/^\d{10}$/.test(phone)) return 'Enter a valid 10-digit phone number';
-    
+
     try {
       const res = await fetch(`${API_URL}/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, phone, email, password: pass, role: 'customer', address }),
       });
-      const data = await res.json();
-      if (!data.success) return data.message;
+      const data = await parseJsonResponse(res, 'signup');
+      if (!data.success) return data.message || 'Signup failed. Please try again.';
       return null;
-    } catch {
-      return 'Server error. Please try again.';
+    } catch (error) {
+      console.error('[signup] request failed:', error);
+      return error instanceof Error && error.message.startsWith('Unexpected response')
+        ? error.message
+        : 'Server error. Please try again.';
     }
   };
 
@@ -184,13 +202,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, password: pass, role }),
       });
-      const data = await res.json();
-      if (!data.success) return data.message;
-      setCurrentUser(data.user);
+      const data = await parseJsonResponse(res, 'login');
+      if (!data.success) return data.message || 'Login failed. Please try again.';
+      setCurrentUser(data.user as User);
       ls.set('sk_session', data.user);
       return null;
-    } catch {
-      return 'Server error. Please try again.';
+    } catch (error) {
+      console.error('[login] request failed:', error);
+      return error instanceof Error && error.message.startsWith('Unexpected response')
+        ? error.message
+        : 'Server error. Please try again.';
     }
   };
 
@@ -301,7 +322,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }),
       });
       const data = await res.json();
-      
+
       if (data.success) {
         const localOrder: Order = {
           ...data.order,

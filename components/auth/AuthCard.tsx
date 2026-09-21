@@ -13,8 +13,8 @@ export default function AuthCard() {
   const [tab, setTab] = useState<Tab>('login');
   const [loading, setLoading] = useState(false);
 
-  // Login fields
-  const [loginId, setLoginId] = useState('');
+  // Login fields (phone only now)
+  const [loginPhone, setLoginPhone] = useState('');
   const [loginPass, setLoginPass] = useState('');
 
   // Signup fields
@@ -24,38 +24,55 @@ export default function AuthCard() {
   const [signupPass, setSignupPass] = useState('');
 
   const handleLogin = async () => {
-    if (!loginId.trim() || !loginPass.trim()) {
-      showToast('❌ Please enter username and password');
+    const phone = loginPhone.trim();
+    const pass = loginPass.trim();
+
+    if (!phone || !pass) {
+      showToast('❌ Please enter phone number and password');
       return;
     }
+    if (!/^\d{10}$/.test(phone)) {
+      showToast('❌ Enter a valid 10-digit phone number');
+      return;
+    }
+
     setLoading(true);
-    const role = (loginId === 'admin' || loginId === '9975636622') ? 'shopkeeper' : 'customer';
-    const err = await login(loginId.trim(), loginPass.trim(), role);
+    const role = phone === '9975636622' ? 'shopkeeper' : 'customer';
+    const err = await login(phone, pass, role);
     setLoading(false);
-    if (err) { 
-      showToast('❌ ' + err); 
-      return; 
+
+    if (err) {
+      showToast('❌ ' + err);
+      return;
     }
     router.push(role === 'shopkeeper' ? '/admin' : '/customer');
   };
 
   const handleSignup = async () => {
-    if (!signupName.trim() || !signupPhone.trim() || !signupPass.trim()) {
+    const name = signupName.trim();
+    const phone = signupPhone.trim();
+    const email = signupEmail.trim();
+    const pass = signupPass.trim();
+
+    if (!name || !phone || !pass) {
       showToast('❌ Please fill all required fields');
       return;
     }
-    if (!/^\d{10}$/.test(signupPhone.trim())) {
+    if (!/^\d{10}$/.test(phone)) {
       showToast('❌ Enter a valid 10-digit phone number');
       return;
     }
+
     setLoading(true);
-    const err = await signup(signupName.trim(), signupPhone.trim(), signupEmail.trim(), signupPass.trim());
+    const err = await signup(name, phone, email, pass);
     setLoading(false);
-    if (err) { 
-      showToast('❌ ' + err); 
-      return; 
+
+    if (err) {
+      showToast('❌ ' + err);
+      return;
     }
     showToast('✅ Account created! Please sign in.');
+    setLoginPhone(phone);
     setTab('login');
   };
 
@@ -94,9 +111,16 @@ export default function AuthCard() {
       {/* LOGIN */}
       {tab === 'login' && (
         <div className="fade-up animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <Field label="Phone / Email" value={loginId} onChange={setLoginId} placeholder="e.g. 9876543210 or you@email.com" />
+          <Field
+            label="Phone Number"
+            value={loginPhone}
+            onChange={setLoginPhone}
+            placeholder="10-digit mobile number"
+            type="tel"
+            maxLength={10}
+          />
           <Field label="Password" value={loginPass} onChange={setLoginPass} placeholder="Enter your password" type="password" />
-          
+
           <button
             onClick={handleLogin}
             disabled={loading}
@@ -111,7 +135,7 @@ export default function AuthCard() {
               'Sign In →'
             )}
           </button>
-          
+
           <p className="text-center mt-6 text-sm text-amber-900/60 font-medium">
             New here?{' '}
             <span
@@ -128,10 +152,10 @@ export default function AuthCard() {
       {tab === 'signup' && (
         <div className="fade-up animate-in fade-in slide-in-from-bottom-2 duration-300">
           <Field label="Full Name" value={signupName} onChange={setSignupName} placeholder="e.g. Rahul Sharma" />
-          <Field label="Phone Number" value={signupPhone} onChange={setSignupPhone} placeholder="10-digit mobile number (e.g. 9876543210)" type="tel" />
+          <Field label="Phone Number" value={signupPhone} onChange={setSignupPhone} placeholder="10-digit mobile number (e.g. 9876543210)" type="tel" maxLength={10} />
           <Field label="Email (optional)" value={signupEmail} onChange={setSignupEmail} placeholder="your@email.com — used for order updates" type="email" />
           <Field label="Password" value={signupPass} onChange={setSignupPass} placeholder="Min. 6 characters, include a number" type="password" />
-          
+
           <button
             onClick={handleSignup}
             disabled={loading}
@@ -146,7 +170,7 @@ export default function AuthCard() {
               'Create Account →'
             )}
           </button>
-          
+
           <p className="text-center mt-6 text-sm text-amber-900/60 font-medium">
             Already have an account?{' '}
             <span
@@ -174,10 +198,10 @@ export default function AuthCard() {
 
 /* ── small reusable input ── */
 function Field({
-  label, value, onChange, placeholder, type = 'text',
+  label, value, onChange, placeholder, type = 'text', maxLength,
 }: {
   label: string; value: string; onChange: (v: string) => void;
-  placeholder: string; type?: string;
+  placeholder: string; type?: string; maxLength?: number;
 }) {
   return (
     <div className="mb-4 text-left">
@@ -187,10 +211,13 @@ function Field({
       <input
         type={type}
         value={value}
-        onChange={e => onChange(e.target.value)}
+        onChange={e => {
+          const v = type === 'tel' ? e.target.value.replace(/\D/g, '') : e.target.value;
+          onChange(maxLength ? v.slice(0, maxLength) : v);
+        }}
         placeholder={placeholder}
         className="w-full px-4 py-3 rounded-xl border border-orange-200 bg-orange-50/30 text-amber-950 placeholder-amber-900/30 font-medium focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 focus:bg-white transition-all"
-        onKeyDown={e => { 
+        onKeyDown={e => {
           if (e.key === 'Enter') {
             const button = e.currentTarget.closest('.fade-up')?.querySelector('button') as HTMLButtonElement;
             if (button) button.click();

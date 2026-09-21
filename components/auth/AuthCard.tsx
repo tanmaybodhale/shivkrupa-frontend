@@ -71,7 +71,7 @@ export default function AuthCard() {
       showToast('❌ ' + err);
       return;
     }
-    showToast('✅ Account created! Please sign in.');
+    showToast('✅ Account created! Please login.');
     setLoginPhone(phone);
     setTab('login');
   };
@@ -87,7 +87,7 @@ export default function AuthCard() {
           Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-500">Shivkrupa</span>
         </h2>
         <p className="text-sm font-medium text-amber-900/60 mt-1">
-          {tab === 'login' ? 'Sign in to your account' : 'Join our neighbourhood store'}
+          {tab === 'login' ? 'Login to your account' : 'Join our neighbourhood store'}
         </p>
       </div>
 
@@ -103,7 +103,7 @@ export default function AuthCard() {
                 : 'text-amber-900/50 hover:text-orange-500 hover:bg-orange-100/30'
             }`}
           >
-            {t === 'login' ? 'Sign In' : 'Sign Up'}
+            {t === 'login' ? 'Login' : 'Sign Up'}
           </button>
         ))}
       </div>
@@ -132,7 +132,7 @@ export default function AuthCard() {
                 Signing in...
               </span>
             ) : (
-              'Sign In →'
+              'Login →'
             )}
           </button>
 
@@ -177,7 +177,7 @@ export default function AuthCard() {
               className="font-bold text-orange-500 hover:text-orange-600 cursor-pointer transition-colors"
               onClick={() => !loading && setTab('login')}
             >
-              Sign In
+              Login
             </span>
           </p>
         </div>

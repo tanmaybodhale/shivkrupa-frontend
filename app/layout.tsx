@@ -58,7 +58,7 @@ const businessJsonLd = {
     streetAddress: 'Kanhaiyya Nagar,',
     addressLocality: 'Jalna',
     addressRegion: 'Maharashtra',
-    postalCode: 'TODO: 431203',
+   postalCode: '431203',
     addressCountry: 'IN',
   },
   areaServed: {

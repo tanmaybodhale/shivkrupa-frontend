@@ -7,6 +7,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { useLang } from '@/context/LanguageContext';
 import LocationPicker from '@/components/customer/LocationPicker';
 import { User } from '@/lib/types';
+import Toast from '@/components/shared/Toast';
 
 type Tab = 'login' | 'signup';
 
@@ -101,7 +102,7 @@ export default function LoginPage() {
       showToast('❌ ' + err);
       return;
     }
-    showToast('✅ Account created! Please sign in.');
+    showToast('✅ Account created! Please login.');
     setTab('login');
   };
 
@@ -149,7 +150,7 @@ export default function LoginPage() {
                 : (isDark ? 'text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10' : 'text-amber-900/50 hover:text-orange-500 hover:bg-orange-100/30')
                 }`}
             >
-              {t === 'login' ? 'Sign In' : 'Sign Up'}
+              {t === 'login' ? 'Login' : 'Sign Up'}
             </button>
           ))}
         </div>
@@ -170,7 +171,7 @@ export default function LoginPage() {
                   Signing in...
                 </span>
               ) : (
-                'Sign In →'
+                'Login →'
               )}
             </button>
 
@@ -244,7 +245,7 @@ export default function LoginPage() {
                 className={`font-bold cursor-pointer transition-colors ${isDark ? 'text-indigo-400 hover:text-indigo-300' : 'text-orange-500 hover:text-orange-600'}`}
                 onClick={() => !loading && setTab('login')}
               >
-                Sign In
+                Login
               </span>
             </p>
           </div>
@@ -259,6 +260,8 @@ export default function LoginPage() {
           </p>
         </div>
       </div>
+
+      <Toast />
     </main>
   );
 }

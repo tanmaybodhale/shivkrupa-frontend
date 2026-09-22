@@ -60,8 +60,8 @@ export default function LoginPage() {
     const err = await login(loginId.trim(), loginPass.trim(), role);
     setLoading(false);
     if (err) {
-      setLoginErrors({ pass: t('wrongCredentials') });
-      showToast('❌ ' + t('wrongCredentials'));
+      setLoginErrors({ pass: err });
+      showToast('❌ ' + err);
       return;
     }
 

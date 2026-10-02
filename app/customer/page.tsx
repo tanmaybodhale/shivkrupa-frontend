@@ -15,6 +15,7 @@ import BillModal from '@/components/shared/BillModal';
 import Toast from '@/components/shared/Toast';
 import { useLang } from '@/context/LanguageContext';
 import CategoryShowcase from '@/components/customer/CategoryShowcase';
+import XeroxShortcutCard from '@/components/customer/XeroxShortcutCard';
 
 export default function CustomerPage() {
   const { setCartOpen } = useApp();
@@ -57,6 +58,11 @@ export default function CustomerPage() {
         {/* Quick Actions & Delivery Status - Removed redundant wrapper */}
         <section>
           <DeliveryBar />
+        </section>
+
+        {/* Xerox / Printing service shortcut */}
+        <section>
+          <XeroxShortcutCard />
         </section>
 
         {/* Shop by category — Amazon-style card grid with real product photo thumbnails */}

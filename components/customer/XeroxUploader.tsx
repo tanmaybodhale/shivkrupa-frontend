@@ -12,6 +12,23 @@ type Orientation = 'portrait' | 'landscape';
 type ColorMode = 'bw' | 'color';
 const PAGE_SIZES = ['A4', 'A3', 'Letter', 'Legal'];
 
+// Built-in default per-copy pricing, by page size and color mode. No admin
+// catalog product needed for Xerox to work — this is the service's own
+// pricing, independent of the regular product catalog. (When an
+// admin-editable pricing panel is built later, this table becomes the
+// fallback default instead of the only source.)
+const DEFAULT_PRICING: Record<string, { bw: number; color: number }> = {
+  A4: { bw: 2, color: 10 },
+  A3: { bw: 5, color: 15 },
+  Letter: { bw: 2, color: 10 },
+  Legal: { bw: 3, color: 12 },
+};
+
+function pricePerCopy(pageSize: string, colorMode: ColorMode): number {
+  const rates = DEFAULT_PRICING[pageSize] || DEFAULT_PRICING.A4;
+  return colorMode === 'color' ? rates.color : rates.bw;
+}
+
 interface LocalFile {
   id: string;
   file: File;
@@ -104,6 +121,7 @@ export default function XeroxUploader() {
   };
 
   const totalCopies = files.reduce((s, f) => s + f.copies, 0);
+  const totalPrice = files.reduce((s, f) => s + pricePerCopy(f.pageSize, f.colorMode) * f.copies, 0);
 
   const handleAddAllToCart = async () => {
     if (files.length === 0) {
@@ -113,18 +131,6 @@ export default function XeroxUploader() {
 
     setUploading(true);
     try {
-      // Fetch the base Xerox product to get price-per-copy and base fields
-      const catalogRes = await fetch(`${API_URL}/catalog`);
-      const catalogData = await catalogRes.json();
-      const baseProduct = catalogData.products?.find(
-        (p: any) => (p.category || '').trim().toLowerCase() === 'xerox'
-      );
-      if (!baseProduct) {
-        showToast('❌ Printing service is not set up yet. Please contact the store.');
-        setUploading(false);
-        return;
-      }
-
       // Apply crops, then upload all files in one batch
       const processedFiles = await Promise.all(files.map(applyCrop));
       const formData = new FormData();
@@ -138,15 +144,24 @@ export default function XeroxUploader() {
         return;
       }
 
-      // Build one cart line per uploaded file, carrying print metadata
+      // Build one cart line per uploaded file, priced from the built-in
+      // page-size/color-mode rate table — no catalog product involved.
       const newCartItems = uploadData.files.map((uploaded: any, idx: number) => {
         const local = files[idx];
+        const unitPrice = pricePerCopy(local.pageSize, local.colorMode);
+        const isUploadedImage = uploaded.resourceType === 'image';
+
         return {
-          ...baseProduct,
-          _id: `${baseProduct._id}-print-${uploaded.public_id}`,
+          _id: `xerox-print-${uploaded.public_id}`,
           name: `Print: ${local.file.name}`,
-          image: uploaded.resourceType === 'image' ? uploaded.url : baseProduct.image,
+          category: 'xerox',
+          price: unitPrice,
           qty: local.copies,
+          // Images show the customer's own uploaded photo as the cart
+          // thumbnail. Non-image files (PDF/DOCX) have no sensible photo,
+          // so they fall back to an emoji — same pattern every other cart
+          // item already uses when it has no image.
+          ...(isUploadedImage ? { image: uploaded.url } : { emoji: '🖨️' }),
           printFile: {
             fileUrl: uploaded.url,
             fileName: uploaded.originalName,
@@ -204,7 +219,9 @@ export default function XeroxUploader() {
       {/* File list */}
       {files.length > 0 && (
         <div className="mt-5 space-y-3">
-          {files.map(f => (
+          {files.map(f => {
+            const unitPrice = pricePerCopy(f.pageSize, f.colorMode);
+            return (
             <div key={f.id} className={`rounded-2xl border p-3 flex gap-3 ${isDark ? 'bg-[#13102a] border-[#2d2450]' : 'bg-orange-50/40 border-orange-100'}`}>
               {/* Thumbnail / icon */}
               <div className={`w-16 h-16 shrink-0 rounded-xl border overflow-hidden flex items-center justify-center ${isDark ? 'bg-[#1a1535] border-[#2d2450]' : 'bg-white border-gray-100'}`}>
@@ -267,15 +284,26 @@ export default function XeroxUploader() {
                       <CropIcon size={11} /> {f.croppedAreaPixels ? 'Cropped' : 'Crop'}
                     </button>
                   )}
+
+                  {/* Live price for this file */}
+                  <span className={`text-[10px] font-black ml-auto ${isDark ? 'text-indigo-300' : 'text-orange-600'}`}>
+                    ₹{unitPrice} × {f.copies} = ₹{unitPrice * f.copies}
+                  </span>
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
 
           <div className="flex items-center justify-between pt-2">
-            <span className={`text-xs font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              Total copies: {totalCopies}
-            </span>
+            <div>
+              <span className={`text-xs font-bold block ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                Total copies: {totalCopies}
+              </span>
+              <span className={`text-sm font-black ${isDark ? 'text-indigo-300' : 'text-orange-600'}`}>
+                ₹{totalPrice}
+              </span>
+            </div>
             <button
               onClick={handleAddAllToCart}
               disabled={uploading}

@@ -67,11 +67,13 @@ export interface AdminNotification {
 export interface PrintDetails {
   fileUrl: string;
   fileName: string;
-  fileType: string; // mime type, e.g. "application/pdf"
-  resourceType: string; // Cloudinary resource type: "image" or "raw"
+  fileType: string;
+  resourceType: string;
   orientation: 'portrait' | 'landscape';
-  pageSize: string; // e.g. "A4", "A3", "Letter", "Legal"
+  pageSize: string;
   colorMode: 'bw' | 'color';
+  pages?: number;          // pages in one copy of the file
+  pricePerPage?: number;   // rate used when the customer ordered
 }
 
 export interface CartItem extends Product {

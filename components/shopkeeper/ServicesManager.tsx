@@ -173,12 +173,16 @@ export default function ServicesManager({ showToast }: { showToast: (msg: string
 
   const saveEdit = async () => {
     if (!editingKey) return;
+    // Only keep rates with a price above 0, so options left blank are never offered
+    const cleanedPricing = Object.fromEntries(
+      Object.entries(editPricing).filter(([, p]) => Number(p) > 0)
+    );
     setSaving(true);
     try {
       const res = await fetch(`${API_URL}/services/${editingKey}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editName, icon: editIcon, pricing: editPricing }),
+        body: JSON.stringify({ name: editName, icon: editIcon, pricing: cleanedPricing }),
       });
       const data = await res.json();
       if (data.success) {
@@ -441,7 +445,7 @@ export default function ServicesManager({ showToast }: { showToast: (msg: string
                             ))}
                           </div>
                         )}
-                        <p className={`text-[11px] ${mutedText}`}>Leave a price empty to hide that option from customers.</p>
+                        <p className={`text-[11px] ${mutedText}`}>Price is per page. Leave a cell empty (or 0) and customers won't see that option.</p>
                       </div>
                     ) : (
                       /* ---------- Other services: simple label + price list ---------- */

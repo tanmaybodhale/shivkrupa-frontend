@@ -9,9 +9,10 @@ import StatsGrid from '@/components/shopkeeper/StatsGrid';
 import OrdersTable from '@/components/shopkeeper/OrdersTable';
 import UsersMap from '@/components/shopkeeper/UsersMap';
 import UsersManager from '@/components/shopkeeper/UsersManager';
+import ServicesManager from '@/components/admin/ServicesManager';
 import Toast from '@/components/shared/Toast';
 import { Product, Order } from '@/lib/types';
-import { Plus, Pencil, Trash2, Check, X, Package, ClipboardList, Infinity as InfinityIcon, Map, Users, Upload, Loader2, Images } from 'lucide-react';
+import { Plus, Pencil, Trash2, Check, X, Package, ClipboardList, Infinity as InfinityIcon, Map, Users, Upload, Loader2, Images, Wrench } from 'lucide-react';
 import NotificationPanel from '@/components/shopkeeper/NotificationPanel';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
@@ -20,7 +21,7 @@ export default function AdminPage() {
   const { currentUser, refreshOrders, showToast, setOrders } = useApp();
   const { isDark } = useTheme();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'orders' | 'catalog' | 'map' | 'users'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'catalog' | 'services' | 'map' | 'users'>('orders');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -93,8 +94,7 @@ export default function AdminPage() {
           </div>
 
           {/* Blinkit-Style Segmented Tabs */}
-          {/* Blinkit-Style Segmented Tabs */}
-          <div className={`grid grid-cols-2 md:flex p-1.5 border rounded-2xl shadow-sm gap-1 ${isDark ? 'bg-[#1a1535] border-[#2d2450]' : 'bg-white border-orange-100'}`}>
+          <div className={`grid grid-cols-2 sm:grid-cols-3 md:flex p-1.5 border rounded-2xl shadow-sm gap-1 ${isDark ? 'bg-[#1a1535] border-[#2d2450]' : 'bg-white border-orange-100'}`}>
             <button
               onClick={() => setActiveTab('orders')}
               className={`flex justify-center items-center gap-2 px-3 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 ${activeTab === 'orders'
@@ -114,6 +114,16 @@ export default function AdminPage() {
             >
               <Package size={16} className="sm:w-[18px] sm:h-[18px]" />
               Catalog
+            </button>
+            <button
+              onClick={() => setActiveTab('services')}
+              className={`flex justify-center items-center gap-2 px-3 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 ${activeTab === 'services'
+                ? (isDark ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-900/30' : 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow-md shadow-orange-200')
+                : (isDark ? 'text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10' : 'text-gray-500 hover:text-orange-600 hover:bg-orange-50')
+                }`}
+            >
+              <Wrench size={16} className="sm:w-[18px] sm:h-[18px]" />
+              Services
             </button>
             <button
               onClick={() => setActiveTab('map')}
@@ -149,6 +159,10 @@ export default function AdminPage() {
 
           {activeTab === 'catalog' && (
             <CatalogManager showToast={showToast} />
+          )}
+
+          {activeTab === 'services' && (
+            <ServicesManager showToast={showToast} />
           )}
 
           {activeTab === 'map' && (
@@ -273,7 +287,6 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
   const uploadImage = async (file: File) => {
     if (!file) return;
 
-    // Validate on frontend too
     const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     if (!allowed.includes(file.type)) {
       showToast(`❌ Invalid file type: ${file.type}. Only JPEG, PNG, WebP, and GIF are allowed.`);
@@ -312,7 +325,6 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
     }
   };
 
-  // Upload multiple images
   const uploadMultipleImages = async (files: File[]) => {
     const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     for (const file of files) {
@@ -352,7 +364,6 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
   return (
     <div className={`rounded-[2rem] shadow-sm overflow-hidden border ${isDark ? 'bg-[#1a1535] border-[#2d2450] shadow-black/10' : 'bg-white border-orange-100/50 shadow-orange-900/5'}`}>
 
-      {/* Table Header / Action Bar */}
       <div className={`p-5 sm:p-6 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ${isDark ? 'border-[#2d2450] bg-[#13102a]/50' : 'border-gray-100 bg-orange-50/30'}`}>
         <div>
           <h3 className={`font-black text-xl ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>Product Catalog</h3>
@@ -369,7 +380,6 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
         </button>
       </div>
 
-      {/* Responsive Table Container Desktop */}
       <div className="hidden lg:block overflow-x-auto">
         <table className="w-full text-left border-collapse min-w-[900px]">
           <thead>
@@ -390,11 +400,9 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
               <tr key={product._id} className={`transition-colors group ${isDark ? 'hover:bg-indigo-500/5' : 'hover:bg-orange-50/30'}`}>
 
                 {editingId === product._id ? (
-                  /* --- EDIT MODE ROW --- */
                   <>
                     <td className="px-6 py-3">
                       <div className="flex flex-col gap-2">
-                        {/* Hidden file input - single primary */}
                         <input
                           ref={fileInputRef}
                           type="file"
@@ -405,7 +413,6 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                             if (file) uploadImage(file);
                           }}
                         />
-                        {/* Hidden multi-file input */}
                         <input
                           ref={multiFileInputRef}
                           type="file"
@@ -417,7 +424,6 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                             if (files.length) uploadMultipleImages(files);
                           }}
                         />
-                        {/* Primary image */}
                         <button
                           type="button"
                           onClick={() => fileInputRef.current?.click()}
@@ -439,7 +445,6 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                             </div>
                           )}
                         </button>
-                        {/* Multi-image add button */}
                         <button
                           type="button"
                           onClick={() => multiFileInputRef.current?.click()}
@@ -449,7 +454,6 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                         >
                           {uploadingMulti ? <Loader2 size={10} className="animate-spin" /> : <><Images size={10} />+ Gallery</>}
                         </button>
-                        {/* Extra images strip */}
                         {(editForm.images || []).length > 0 && (
                           <div className="flex flex-wrap gap-1 max-w-[80px]">
                             {(editForm.images || []).map((img, idx) => (
@@ -594,7 +598,6 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                     </td>
                   </>
                 ) : (
-                  /* --- VIEW MODE ROW --- */
                   <>
                     <td className="px-6 py-4">
                       <div className={`w-14 h-14 rounded-xl border shadow-sm flex items-center justify-center overflow-hidden ${isDark ? 'bg-[#13102a] border-[#2d2450]' : 'bg-white border-gray-100'}`}>
@@ -692,17 +695,14 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
         </table>
       </div>
 
-      {/* Mobile Card Layout */}
       <div className="block lg:hidden divide-y divide-[#2d2450]/20">
         {products.map(product => (
           <div key={product._id} className={`p-4 transition-colors ${isDark ? 'hover:bg-indigo-500/5' : 'hover:bg-orange-50/30'}`}>
             
             {editingId === product._id ? (
-               /* Mobile Edit Mode Layout */
                <div className="flex flex-col gap-4">
                   <div className="flex items-start gap-4">
                      <div className="shrink-0 relative">
-                        {/* Hidden file input bound to ref */}
                         <button
                           type="button"
                           onClick={() => fileInputRef.current?.click()}
@@ -758,7 +758,6 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                      </div>
                   </div>
 
-                  {/* Multi-image section for mobile */}
                   <div className="flex flex-col gap-2">
                      <button
                        type="button"
@@ -863,7 +862,6 @@ function CatalogManager({ showToast }: { showToast: (msg: string) => void }) {
                   </div>
                </div>
             ) : (
-               /* Mobile View Mode Layout */
                <div className="flex gap-4">
                   <div className={`w-20 h-20 shrink-0 rounded-xl border shadow-sm flex items-center justify-center overflow-hidden ${isDark ? 'bg-[#13102a] border-[#2d2450]' : 'bg-white border-gray-100'}`}>
                     {product.image?.startsWith('http') ? (

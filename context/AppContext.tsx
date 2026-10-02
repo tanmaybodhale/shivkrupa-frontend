@@ -55,6 +55,7 @@ interface AppState {
   deleteAddress: (index: number) => Promise<string | null>;
 
   addToCart: (product: Product) => void;
+  addPrintItemsToCart: (items: CartItem[]) => void;
   changeQty: (productId: string, delta: number) => void;
   clearCart: () => void;
   cartSubtotal: () => number;
@@ -239,6 +240,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  // Adds one or more pre-built cart items at once, each kept as its own
+  // distinct line (no qty-merging with existing items). Used by the
+  // Xerox/print uploader, where every uploaded file is its own cart line
+  // carrying unique print metadata (orientation, page size, crop, etc.),
+  // unlike addToCart's single-product qty-increment behaviour.
+  const addPrintItemsToCart = useCallback((items: CartItem[]) => {
+    setCart(prev => [...prev, ...items]);
+  }, []);
+
   const changeQty = (productId: string, delta: number) => {
     setCart(prev => {
       const updated = prev.map(c => {
@@ -303,6 +313,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       price: item.price,
       qty: item.qty,
       image: item.image,
+      // Carry print metadata through to the saved order, when this cart
+      // line came from the Xerox/print uploader, so the admin can later
+      // download the exact file the customer uploaded.
+      ...(item.printFile ? { printDetails: item.printFile } : {}),
     }));
 
     try {
@@ -378,7 +392,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider value={{
       currentUser, cart, orders, toast, cartOpen, wishlist,
       signup, login, logout, updateProfile, updateAddress, saveAddress, deleteAddress,
-      addToCart, changeQty, clearCart, cartSubtotal, deliveryCharge, cartTotal, setCartOpen,
+      addToCart, addPrintItemsToCart, changeQty, clearCart, cartSubtotal, deliveryCharge, cartTotal, setCartOpen,
       toggleWishlist, isInWishlist,
       placeOrder, updateOrderStatus, refreshOrders, fetchOrders, setOrders, setCurrentUser,
       showToast,

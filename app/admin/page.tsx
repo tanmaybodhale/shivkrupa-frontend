@@ -9,7 +9,7 @@ import StatsGrid from '@/components/shopkeeper/StatsGrid';
 import OrdersTable from '@/components/shopkeeper/OrdersTable';
 import UsersMap from '@/components/shopkeeper/UsersMap';
 import UsersManager from '@/components/shopkeeper/UsersManager';
-import ServicesManager from '@/components/admin/ServicesManager';
+import ServicesManager from '@/components/shopkeeper/ServicesManager';
 import Toast from '@/components/shared/Toast';
 import { Product, Order } from '@/lib/types';
 import { Plus, Pencil, Trash2, Check, X, Package, ClipboardList, Infinity as InfinityIcon, Map, Users, Upload, Loader2, Images, Wrench } from 'lucide-react';

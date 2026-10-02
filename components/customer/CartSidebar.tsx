@@ -81,6 +81,9 @@ export default function CartSidebar() {
       clearCart();
       setCartOpen(false);
     }
+    else {
+      showToast('❌ Could not place order. Please try again.');
+    }
   };
 
   return (

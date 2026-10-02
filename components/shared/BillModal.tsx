@@ -109,8 +109,9 @@ export default function BillModal({ order, onClose }: Props) {
       <div class="trow grand"><span>Grand Total</span><span>₹${order.total}</span></div>
     </div>
     <div class="ftr">
-      <p>GST No: 27XXXXX1234X1Z5</p>
-      <p>Pune, Maharashtra</p>
+  
+      <p>Jalna ❤️, Maharashtra</p>
+      <p>Made With ❤️ in India</p>
       <div class="thanks">Thank you for shopping with us! 🙏</div>
     </div>
   </div>

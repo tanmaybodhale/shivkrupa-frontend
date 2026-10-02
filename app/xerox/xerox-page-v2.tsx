@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { ArrowLeft, Printer } from 'lucide-react';
 import XeroxUploader from '@/components/customer/XeroxUploader';
+import CartSidebar from '@/components/customer/CartSidebar';
+import MiniCartBar from '@/components/customer/MiniCartBar';
+import Toast from '@/components/shared/Toast';
 
 export const metadata = {
   title: 'Xerox / Printing Service',
@@ -10,7 +13,7 @@ export const metadata = {
 export default function XeroxPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#0f0b24]">
-      <div className="max-w-3xl mx-auto px-4 py-6 sm:py-10">
+      <div className="max-w-3xl mx-auto px-4 py-6 sm:py-10 pb-28">
         {/* Back link */}
         <Link
           href="/customer"
@@ -38,6 +41,14 @@ export default function XeroxPage() {
         {/* Uploader */}
         <XeroxUploader />
       </div>
+
+      {/* Same overlays the rest of the app uses — without these, adding to
+          cart from this page has nothing to render the sidebar/toast into,
+          so the item is added to state but invisible until you navigate
+          elsewhere. */}
+      <CartSidebar />
+      <MiniCartBar />
+      <Toast />
     </div>
   );
 }

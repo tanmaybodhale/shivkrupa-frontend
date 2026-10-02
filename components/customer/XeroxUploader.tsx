@@ -203,7 +203,16 @@ export default function XeroxUploader() {
         ) || null;
       } catch { /* ignore, fall back to a minimal base item */ }
 
-      const base = baseProduct ?? { _id: 'xerox-service', category: 'xerox' };
+      const base = baseProduct ?? {
+        _id: 'xerox-service',
+        name: 'Xerox / Printing',
+        category: 'xerox',
+        price: 0,
+        mrp: 0,
+        unit: 'copy',
+        image: '',
+        inStock: true,
+      };
 
       // Apply crops, then upload all files in one batch
       const processedFiles = await Promise.all(files.map(applyCrop));
@@ -230,6 +239,9 @@ export default function XeroxUploader() {
           _id: `${base._id}-print-${uploaded.public_id}`,
           name: `Print: ${local.file.name}`,
           price: perPage * local.pages,
+          mrp: perPage * local.pages,
+          unit: 'copy',
+          inStock: true,
           image: local.isImage ? uploaded.url : '',
           emoji: local.isImage ? undefined : '📄',
           qty: local.copies,

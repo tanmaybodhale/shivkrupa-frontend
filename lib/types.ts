@@ -62,9 +62,21 @@ export interface AdminNotification {
   read: boolean;
 }
 
+// Metadata for a single uploaded Xerox/print file, carried on a cart item
+// and through to the saved order so the admin can download & print it.
+export interface PrintDetails {
+  fileUrl: string;
+  fileName: string;
+  fileType: string; // mime type, e.g. "application/pdf"
+  resourceType: string; // Cloudinary resource type: "image" or "raw"
+  orientation: 'portrait' | 'landscape';
+  pageSize: string; // e.g. "A4", "A3", "Letter", "Legal"
+  colorMode: 'bw' | 'color';
+}
 
 export interface CartItem extends Product {
   qty: number;
+  printFile?: PrintDetails;
 }
 
 export type OrderStatus = 'pending' | 'confirmed' | 'dispatched' | 'delivered' | 'cancelled';
@@ -80,6 +92,7 @@ export interface Order {
     price: number;
     qty: number;
     image?: string;
+    printDetails?: PrintDetails;
   }[];
   subtotal: number;
   delivery: number;

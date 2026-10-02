@@ -1,16 +1,20 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import Cropper, { Area } from 'react-easy-crop';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/context/ThemeContext';
 import { Upload, X, FileText, Crop as CropIcon, RotateCw, Plus, Minus } from 'lucide-react';
+import { getXeroxOptions, pricePerPage, lineTotal, countPages, Pricing } from '@/lib/xeroxPricing';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 type Orientation = 'portrait' | 'landscape';
 type ColorMode = 'bw' | 'color';
-const PAGE_SIZES = ['A4', 'A3', 'Letter', 'Legal'];
+
+// Internal value -> label used in the admin pricing keys ("A4 - B&W")
+const MODE_LABEL: Record<ColorMode, string> = { bw: 'B&W', color: 'Color' };
+const LABEL_TO_MODE: Record<string, ColorMode> = { 'B&W': 'bw', Color: 'color' };
 
 interface LocalFile {
   id: string;
@@ -22,10 +26,13 @@ interface LocalFile {
   pageSize: string;
   colorMode: ColorMode;
   croppedAreaPixels: Area | null;
+  pages: number;           // pages in ONE copy of this file
+  pagesKnown: boolean;     // false = DOC/DOCX etc., customer must enter it
+  countingPages: boolean;
 }
 
 export default function XeroxUploader() {
-  const { cart, showToast, addPrintItemsToCart } = useApp();
+  const { showToast, addPrintItemsToCart } = useApp();
   const { isDark } = useTheme();
   const [files, setFiles] = useState<LocalFile[]>([]);
   const [cropTarget, setCropTarget] = useState<LocalFile | null>(null);
@@ -34,8 +41,43 @@ export default function XeroxUploader() {
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Pricing comes from Admin > Services > Xerox
+  const [pricing, setPricing] = useState<Pricing | null>(null);
+  const [pricingLoaded, setPricingLoaded] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/services`);
+        const data = await res.json();
+        const xerox = (data.services || []).find((s: any) => s.key === 'xerox' && s.active !== false);
+        setPricing(xerox && xerox.pricing && typeof xerox.pricing === 'object' ? xerox.pricing : null);
+      } catch (e) {
+        console.error('Failed to load Xerox pricing:', e);
+        setPricing(null);
+      } finally {
+        setPricingLoaded(true);
+      }
+    })();
+  }, []);
+
+  const options = useMemo(() => getXeroxOptions(pricing), [pricing]);
+  const serviceReady = options.sizes.length > 0;
+
+  const typesFor = (size: string): ColorMode[] =>
+    (options.typesBySize[size] || [])
+      .map(label => LABEL_TO_MODE[label])
+      .filter(Boolean) as ColorMode[];
+
   const handleFilesSelected = (fileList: FileList | null) => {
     if (!fileList) return;
+    if (!serviceReady) {
+      showToast('❌ Printing service is not set up yet. Please contact the store.');
+      return;
+    }
+    const defaultSize = options.sizes[0];
+    const defaultMode = typesFor(defaultSize)[0] || 'bw';
+
     const newFiles: LocalFile[] = Array.from(fileList).map(file => ({
       id: `${file.name}-${file.size}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       file,
@@ -43,15 +85,35 @@ export default function XeroxUploader() {
       isImage: file.type.startsWith('image/'),
       copies: 1,
       orientation: 'portrait',
-      pageSize: 'A4',
-      colorMode: 'bw',
+      pageSize: defaultSize,
+      colorMode: defaultMode,
       croppedAreaPixels: null,
+      pages: 1,
+      pagesKnown: file.type.startsWith('image/'),
+      countingPages: !file.type.startsWith('image/'),
     }));
     setFiles(prev => [...prev, ...newFiles]);
+
+    // Count pages for PDFs (and flag DOC/DOCX for manual entry)
+    newFiles.forEach(async nf => {
+      if (nf.isImage) return;
+      const n = await countPages(nf.file);
+      setFiles(prev => prev.map(f =>
+        f.id === nf.id
+          ? { ...f, pages: n ?? 1, pagesKnown: n !== null, countingPages: false }
+          : f
+      ));
+    });
   };
 
   const updateFile = (id: string, patch: Partial<LocalFile>) => {
     setFiles(prev => prev.map(f => f.id === id ? { ...f, ...patch } : f));
+  };
+
+  const changePageSize = (f: LocalFile, size: string) => {
+    const modes = typesFor(size);
+    const colorMode = modes.includes(f.colorMode) ? f.colorMode : (modes[0] || 'bw');
+    updateFile(f.id, { pageSize: size, colorMode });
   };
 
   const removeFile = (id: string) => {
@@ -103,27 +165,45 @@ export default function XeroxUploader() {
     });
   };
 
+  const fileTotal = (f: LocalFile) =>
+    lineTotal(pricing, { size: f.pageSize, type: MODE_LABEL[f.colorMode], pages: f.pages, copies: f.copies });
+
   const totalCopies = files.reduce((s, f) => s + f.copies, 0);
+  const grandTotal = files.reduce((s, f) => s + fileTotal(f), 0);
 
   const handleAddAllToCart = async () => {
     if (files.length === 0) {
       showToast('❌ Please upload at least one file');
       return;
     }
+    if (!serviceReady) {
+      showToast('❌ Printing service is not set up yet. Please contact the store.');
+      return;
+    }
+    if (files.some(f => f.countingPages)) {
+      showToast('⏳ Still counting pages, one moment…');
+      return;
+    }
+    const bad = files.find(f => pricePerPage(pricing, f.pageSize, MODE_LABEL[f.colorMode]) <= 0 || f.pages < 1);
+    if (bad) {
+      showToast(`❌ ${bad.file.name}: choose an available size/type and a valid page count`);
+      return;
+    }
 
     setUploading(true);
     try {
-      // Fetch the base Xerox product to get price-per-copy and base fields
-      const catalogRes = await fetch(`${API_URL}/catalog`);
-      const catalogData = await catalogRes.json();
-      const baseProduct = catalogData.products?.find(
-        (p: any) => (p.category || '').trim().toLowerCase() === 'xerox'
-      );
-      if (!baseProduct) {
-        showToast('❌ Printing service is not set up yet. Please contact the store.');
-        setUploading(false);
-        return;
-      }
+      // Optional: use a catalog "xerox" product for any extra base fields (stock, etc.)
+      // The service no longer depends on it existing.
+      let baseProduct: any = null;
+      try {
+        const catalogRes = await fetch(`${API_URL}/catalog`);
+        const catalogData = await catalogRes.json();
+        baseProduct = catalogData.products?.find(
+          (p: any) => (p.category || '').trim().toLowerCase() === 'xerox'
+        ) || null;
+      } catch { /* ignore, fall back to a minimal base item */ }
+
+      const base = baseProduct ?? { _id: 'xerox-service', category: 'xerox' };
 
       // Apply crops, then upload all files in one batch
       const processedFiles = await Promise.all(files.map(applyCrop));
@@ -138,18 +218,18 @@ export default function XeroxUploader() {
         return;
       }
 
-      // Build one cart line per uploaded file, carrying print metadata.
-      // Whether a file gets a real image thumbnail is decided by its actual
-      // mime type (local.isImage), NOT Cloudinary's resource classification —
-      // Cloudinary reports PDFs as resource_type "image" too (since it can
-      // rasterize pages), but a PDF file URL can never render inside an
-      // <img> tag, so trusting that field produces a broken thumbnail.
+      // One cart line per uploaded file.
+      //   price = cost of ONE copy of the whole file (price per page x pages)
+      //   qty   = number of copies
+      // so the cart's existing price x qty maths gives price/page x pages x copies.
       const newCartItems = uploadData.files.map((uploaded: any, idx: number) => {
         const local = files[idx];
+        const perPage = pricePerPage(pricing, local.pageSize, MODE_LABEL[local.colorMode]);
         return {
-          ...baseProduct,
-          _id: `${baseProduct._id}-print-${uploaded.public_id}`,
+          ...base,
+          _id: `${base._id}-print-${uploaded.public_id}`,
           name: `Print: ${local.file.name}`,
+          price: perPage * local.pages,
           image: local.isImage ? uploaded.url : '',
           emoji: local.isImage ? undefined : '📄',
           qty: local.copies,
@@ -161,6 +241,8 @@ export default function XeroxUploader() {
             orientation: local.orientation,
             pageSize: local.pageSize,
             colorMode: local.colorMode,
+            pages: local.pages,
+            pricePerPage: perPage,
           },
         };
       });
@@ -168,10 +250,6 @@ export default function XeroxUploader() {
       addPrintItemsToCart(newCartItems);
       setFiles([]);
       showToast(`✅ ${newCartItems.length} file(s) added to cart!`);
-      // No setCartOpen(true) here — the mini cart bar at the bottom already
-      // surfaces this automatically, same as adding any normal product, so
-      // the customer can keep browsing/uploading instead of being pulled
-      // into the full cart sidebar every time.
     } catch (error) {
       console.error('Print upload error:', error);
       showToast('❌ Something went wrong. Please try again.');
@@ -179,6 +257,8 @@ export default function XeroxUploader() {
       setUploading(false);
     }
   };
+
+  const selectCls = `text-[10px] font-bold px-2 py-1 rounded-lg border outline-none ${isDark ? 'bg-[#1a1535] border-[#2d2450] text-gray-300' : 'bg-white border-orange-200 text-gray-600'}`;
 
   return (
     <div className={`rounded-3xl border p-5 sm:p-6 ${isDark ? 'bg-[#1a1535] border-[#2d2450]' : 'bg-white border-orange-100'}`}>
@@ -189,6 +269,12 @@ export default function XeroxUploader() {
         Upload photos or documents — set copies, orientation, and page size for each.
       </p>
 
+      {pricingLoaded && !serviceReady && (
+        <div className={`mb-4 rounded-xl border px-4 py-3 text-sm font-semibold ${isDark ? 'border-red-500/30 bg-red-500/10 text-red-300' : 'border-red-200 bg-red-50 text-red-700'}`}>
+          Printing service is not set up yet. Please contact the store.
+        </div>
+      )}
+
       {/* Upload dropzone */}
       <input
         ref={inputRef}
@@ -196,11 +282,12 @@ export default function XeroxUploader() {
         multiple
         accept="image/jpeg,image/png,image/webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         className="hidden"
-        onChange={e => handleFilesSelected(e.target.files)}
+        onChange={e => { handleFilesSelected(e.target.files); e.target.value = ''; }}
       />
       <button
         onClick={() => inputRef.current?.click()}
-        className={`w-full py-8 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all ${
+        disabled={!pricingLoaded || !serviceReady}
+        className={`w-full py-8 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all disabled:opacity-50 ${
           isDark ? 'border-[#2d2450] text-gray-400 hover:border-indigo-500/50 hover:bg-indigo-500/5' : 'border-orange-200 text-gray-500 hover:border-orange-400 hover:bg-orange-50/50'
         }`}
       >
@@ -212,81 +299,113 @@ export default function XeroxUploader() {
       {/* File list */}
       {files.length > 0 && (
         <div className="mt-5 space-y-3">
-          {files.map(f => (
-            <div key={f.id} className={`rounded-2xl border p-3 flex gap-3 ${isDark ? 'bg-[#13102a] border-[#2d2450]' : 'bg-orange-50/40 border-orange-100'}`}>
-              {/* Thumbnail / icon */}
-              <div className={`w-16 h-16 shrink-0 rounded-xl border overflow-hidden flex items-center justify-center ${isDark ? 'bg-[#1a1535] border-[#2d2450]' : 'bg-white border-gray-100'}`}>
-                {f.isImage ? (
-                  <img src={f.previewUrl} alt={f.file.name} className="w-full h-full object-cover" />
-                ) : (
-                  <FileText size={24} className={isDark ? 'text-indigo-400' : 'text-orange-400'} />
-                )}
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <p className={`text-xs font-bold truncate ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{f.file.name}</p>
-                  <button onClick={() => removeFile(f.id)} className="shrink-0 text-red-500 hover:text-red-600">
-                    <X size={16} />
-                  </button>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 mt-2">
-                  {/* Copies stepper */}
-                  <div className={`flex items-center border rounded-lg ${isDark ? 'border-[#2d2450]' : 'border-orange-200'}`}>
-                    <button onClick={() => updateFile(f.id, { copies: Math.max(1, f.copies - 1) })} className="p-1.5"><Minus size={12} /></button>
-                    <span className="text-xs font-bold w-6 text-center">{f.copies}</span>
-                    <button onClick={() => updateFile(f.id, { copies: f.copies + 1 })} className="p-1.5"><Plus size={12} /></button>
-                  </div>
-
-                  {/* Orientation */}
-                  <button
-                    onClick={() => updateFile(f.id, { orientation: f.orientation === 'portrait' ? 'landscape' : 'portrait' })}
-                    className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border ${isDark ? 'border-[#2d2450] text-gray-400' : 'border-orange-200 text-gray-500'}`}
-                  >
-                    <RotateCw size={11} /> {f.orientation}
-                  </button>
-
-                  {/* Page size */}
-                  <select
-                    value={f.pageSize}
-                    onChange={e => updateFile(f.id, { pageSize: e.target.value })}
-                    className={`text-[10px] font-bold px-2 py-1 rounded-lg border outline-none ${isDark ? 'bg-[#1a1535] border-[#2d2450] text-gray-300' : 'bg-white border-orange-200 text-gray-600'}`}
-                  >
-                    {PAGE_SIZES.map(size => <option key={size} value={size}>{size}</option>)}
-                  </select>
-
-                  {/* Color mode */}
-                  <select
-                    value={f.colorMode}
-                    onChange={e => updateFile(f.id, { colorMode: e.target.value as ColorMode })}
-                    className={`text-[10px] font-bold px-2 py-1 rounded-lg border outline-none ${isDark ? 'bg-[#1a1535] border-[#2d2450] text-gray-300' : 'bg-white border-orange-200 text-gray-600'}`}
-                  >
-                    <option value="bw">B&W</option>
-                    <option value="color">Color</option>
-                  </select>
-
-                  {/* Crop — images only */}
-                  {f.isImage && (
-                    <button
-                      onClick={() => { setCropTarget(f); setCrop({ x: 0, y: 0 }); setZoom(1); }}
-                      className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border ${f.croppedAreaPixels ? 'bg-emerald-500 text-white border-emerald-500' : (isDark ? 'border-[#2d2450] text-gray-400' : 'border-orange-200 text-gray-500')}`}
-                    >
-                      <CropIcon size={11} /> {f.croppedAreaPixels ? 'Cropped' : 'Crop'}
-                    </button>
+          {files.map(f => {
+            const perPage = pricePerPage(pricing, f.pageSize, MODE_LABEL[f.colorMode]);
+            return (
+              <div key={f.id} className={`rounded-2xl border p-3 flex gap-3 ${isDark ? 'bg-[#13102a] border-[#2d2450]' : 'bg-orange-50/40 border-orange-100'}`}>
+                {/* Thumbnail / icon */}
+                <div className={`w-16 h-16 shrink-0 rounded-xl border overflow-hidden flex items-center justify-center ${isDark ? 'bg-[#1a1535] border-[#2d2450]' : 'bg-white border-gray-100'}`}>
+                  {f.isImage ? (
+                    <img src={f.previewUrl} alt={f.file.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <FileText size={24} className={isDark ? 'text-indigo-400' : 'text-orange-400'} />
                   )}
                 </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className={`text-xs font-bold truncate ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{f.file.name}</p>
+                    <button onClick={() => removeFile(f.id)} className="shrink-0 text-red-500 hover:text-red-600">
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    {/* Copies stepper */}
+                    <div className={`flex items-center border rounded-lg ${isDark ? 'border-[#2d2450]' : 'border-orange-200'}`}>
+                      <button onClick={() => updateFile(f.id, { copies: Math.max(1, f.copies - 1) })} className="p-1.5"><Minus size={12} /></button>
+                      <span className="text-xs font-bold w-6 text-center">{f.copies}</span>
+                      <button onClick={() => updateFile(f.id, { copies: f.copies + 1 })} className="p-1.5"><Plus size={12} /></button>
+                    </div>
+
+                    {/* Orientation */}
+                    <button
+                      onClick={() => updateFile(f.id, { orientation: f.orientation === 'portrait' ? 'landscape' : 'portrait' })}
+                      className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border ${isDark ? 'border-[#2d2450] text-gray-400' : 'border-orange-200 text-gray-500'}`}
+                    >
+                      <RotateCw size={11} /> {f.orientation}
+                    </button>
+
+                    {/* Page size: only sizes the shop has priced */}
+                    <select value={f.pageSize} onChange={e => changePageSize(f, e.target.value)} className={selectCls}>
+                      {options.sizes.map(size => <option key={size} value={size}>{size}</option>)}
+                    </select>
+
+                    {/* Print type: only types priced for the chosen size */}
+                    <select
+                      value={f.colorMode}
+                      onChange={e => updateFile(f.id, { colorMode: e.target.value as ColorMode })}
+                      className={selectCls}
+                    >
+                      {typesFor(f.pageSize).map(m => (
+                        <option key={m} value={m}>{MODE_LABEL[m]}</option>
+                      ))}
+                    </select>
+
+                    {/* Crop — images only */}
+                    {f.isImage && (
+                      <button
+                        onClick={() => { setCropTarget(f); setCrop({ x: 0, y: 0 }); setZoom(1); }}
+                        className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border ${f.croppedAreaPixels ? 'bg-emerald-500 text-white border-emerald-500' : (isDark ? 'border-[#2d2450] text-gray-400' : 'border-orange-200 text-gray-500')}`}
+                      >
+                        <CropIcon size={11} /> {f.croppedAreaPixels ? 'Cropped' : 'Crop'}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Pages + price breakdown */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 mt-2">
+                    <div className="flex items-center gap-2">
+                      {f.countingPages ? (
+                        <span className={`text-[11px] font-semibold ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Counting pages…</span>
+                      ) : f.pagesKnown ? (
+                        <span className={`text-[11px] font-semibold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          {f.pages} {f.pages === 1 ? 'page' : 'pages'}
+                        </span>
+                      ) : (
+                        <label className={`flex items-center gap-1.5 text-[11px] font-semibold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          Pages in file
+                          <input
+                            type="number"
+                            min={1}
+                            value={f.pages}
+                            onChange={e => updateFile(f.id, { pages: Math.max(1, Math.floor(Number(e.target.value)) || 1) })}
+                            className={`w-16 px-2 py-1 rounded-lg border text-xs font-bold outline-none ${isDark ? 'bg-[#1a1535] border-[#2d2450] text-gray-200' : 'bg-white border-orange-200 text-gray-800'}`}
+                          />
+                        </label>
+                      )}
+                    </div>
+                    <span className={`text-[11px] font-bold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      {f.pages} {f.pages === 1 ? 'page' : 'pages'} × ₹{perPage} × {f.copies} {f.copies === 1 ? 'copy' : 'copies'} = ₹{fileTotal(f)}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           <div className="flex items-center justify-between pt-2">
-            <span className={`text-xs font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              Total copies: {totalCopies}
-            </span>
+            <div className="space-y-0.5">
+              <span className={`block text-xs font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                Total copies: {totalCopies}
+              </span>
+              <span className={`block text-sm font-black ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
+                Total: ₹{grandTotal}
+              </span>
+            </div>
             <button
               onClick={handleAddAllToCart}
-              disabled={uploading}
+              disabled={uploading || files.some(f => f.countingPages)}
               className={`px-6 py-3 rounded-2xl font-bold text-sm text-white shadow-lg transition-all disabled:opacity-60 ${
                 isDark ? 'bg-gradient-to-r from-indigo-600 to-purple-600' : 'bg-gradient-to-r from-orange-500 to-yellow-500'
               }`}

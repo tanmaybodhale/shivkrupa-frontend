@@ -3,13 +3,22 @@
 import { Order } from '@/lib/types';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/context/ThemeContext';
-import { X, User, Phone, Clock, Package, CheckCircle2, XCircle, Timer, ClipboardCheck, MapPin, Navigation, Truck, Printer } from 'lucide-react';
+import { X, User, Phone, Clock, Package, CheckCircle2, XCircle, Timer, ClipboardCheck, MapPin, Navigation, Truck, Printer, Download, FileText, Image as ImageIcon } from 'lucide-react';
 import { printReceipt } from './utils/printReceipt';
 
 interface Props {
   order: Order;
   onClose: () => void;
   onUpdated: (order: Order) => void;
+}
+
+// Appends Cloudinary's attachment flag so the browser downloads the file
+// instead of trying to open/preview it inline (important for PDFs/DOCX).
+function toDownloadUrl(url: string): string {
+  if (url.includes('/upload/')) {
+    return url.replace('/upload/', '/upload/fl_attachment/');
+  }
+  return url;
 }
 
 export default function OrderDetailModal({ order, onClose, onUpdated }: Props) {
@@ -25,6 +34,7 @@ export default function OrderDetailModal({ order, onClose, onUpdated }: Props) {
   };
 
   const freeDelivery = order.delivery === 0;
+  const printItems = order.items.filter(item => item.printDetails);
 
   const getStatusConfig = (s: Order['status'], isActive: boolean) => {
     switch (s) {
@@ -166,6 +176,58 @@ export default function OrderDetailModal({ order, onClose, onUpdated }: Props) {
                     Get Directions
                   </a>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Print Files — only shown when this order includes Xerox/print items */}
+          {printItems.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className={`text-[10px] uppercase tracking-[0.15em] font-black ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                  Print Files
+                </p>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${isDark ? 'text-indigo-300 bg-indigo-900/30' : 'text-gray-500 bg-gray-100'}`}>
+                  {printItems.length} file{printItems.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <div className={`rounded-2xl border overflow-hidden shadow-sm divide-y ${isDark ? 'bg-[#1a1535] border-[#2d2450] divide-[#2d2450]' : 'bg-white border-gray-100 divide-gray-50'}`}>
+                {printItems.map((item, i) => {
+                  const pd = item.printDetails!;
+                  const isImage = pd.resourceType === 'image';
+                  return (
+                    <div key={i} className="flex items-center gap-3 px-4 py-3">
+                      <div className={`w-12 h-12 rounded-xl border flex items-center justify-center overflow-hidden shrink-0 ${isDark ? 'bg-[#13102a] border-[#2d2450]' : 'bg-gray-50 border-gray-100'}`}>
+                        {isImage ? (
+                          <img src={pd.fileUrl} alt={pd.fileName} className="w-full h-full object-cover" />
+                        ) : (
+                          <FileText size={20} className={isDark ? 'text-indigo-400' : 'text-orange-400'} />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-bold truncate ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>{pd.fileName}</p>
+                        <p className={`text-[11px] font-semibold mt-0.5 flex flex-wrap gap-x-2 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                          <span>{item.qty} {item.qty === 1 ? 'copy' : 'copies'}</span>
+                          <span>· {pd.pageSize}</span>
+                          <span>· {pd.orientation}</span>
+                          <span>· {pd.colorMode === 'bw' ? 'B&W' : 'Color'}</span>
+                        </p>
+                      </div>
+                      <a
+                        href={toDownloadUrl(pd.fileUrl)}
+                        download={pd.fileName}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                          isDark ? 'text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white' : 'text-orange-600 bg-orange-50 hover:bg-orange-500 hover:text-white'
+                        }`}
+                      >
+                        <Download size={14} strokeWidth={2.5} />
+                        Download
+                      </a>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

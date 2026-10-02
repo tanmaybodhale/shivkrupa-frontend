@@ -85,10 +85,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState({ msg: '', visible: false });
   const [cartOpen, setCartOpen] = useState(false);
   const [wishlist, setWishlist] = useState<string[]>([]);
+  const [cartHydrated, setCartHydrated] = useState(false);
 
-  // Persist orders + load on mount
+  // Persist orders + cart + load on mount
   useEffect(() => {
     setOrders(ls.get<Order[]>('sk_orders', []));
+    setCart(ls.get<CartItem[]>('sk_cart', []));
+    setCartHydrated(true);
     // Restore session
     const u = ls.get<User | null>('sk_session', null);
     if (u) {
@@ -100,6 +103,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setWishlist(ls.get<string[]>('sk_wishlist', []));
     }
   }, []);
+
+  // Keep localStorage in sync with cart state, so it survives a full page
+  // reload (e.g. typing a URL directly, or navigating between /customer
+  // and /xerox) instead of resetting to empty every time the app remounts.
+  // Skipped until the initial hydration above has run, so this doesn't
+  // immediately overwrite the saved cart with the empty initial state.
+  useEffect(() => {
+    if (!cartHydrated) return;
+    ls.set('sk_cart', cart);
+  }, [cart, cartHydrated]);
 
   const showToast = useCallback((msg: string) => {
     setToast({ msg, visible: true });
@@ -222,6 +235,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setWishlist([]);
     ls.set('sk_session', null);
     ls.set('sk_wishlist', []);
+    ls.set('sk_cart', []);
   };
 
   // ── Cart ─────────────────────────────────────────────────

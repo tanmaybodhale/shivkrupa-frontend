@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import Cropper, { Area } from 'react-easy-crop';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -12,21 +12,23 @@ type Orientation = 'portrait' | 'landscape';
 type ColorMode = 'bw' | 'color';
 const PAGE_SIZES = ['A4', 'A3', 'Letter', 'Legal'];
 
-// Built-in default per-copy pricing, by page size and color mode. No admin
-// catalog product needed for Xerox to work — this is the service's own
-// pricing, independent of the regular product catalog. (When an
-// admin-editable pricing panel is built later, this table becomes the
-// fallback default instead of the only source.)
-const DEFAULT_PRICING: Record<string, { bw: number; color: number }> = {
-  A4: { bw: 2, color: 10 },
-  A3: { bw: 5, color: 15 },
-  Letter: { bw: 2, color: 10 },
-  Legal: { bw: 3, color: 12 },
+// Fallback rates, used only if the admin hasn't set up the Xerox service
+// yet (or the /services fetch fails) — same shape and keys as what the
+// admin's "Services" tab writes, so once they configure it, live data
+// takes over automatically with zero code changes needed here.
+const FALLBACK_PRICING: Record<string, number> = {
+  'A4 - B&W': 2,
+  'A4 - Color': 10,
+  'A3 - B&W': 5,
+  'A3 - Color': 15,
+  'Letter - B&W': 2,
+  'Letter - Color': 10,
+  'Legal - B&W': 3,
+  'Legal - Color': 12,
 };
 
-function pricePerCopy(pageSize: string, colorMode: ColorMode): number {
-  const rates = DEFAULT_PRICING[pageSize] || DEFAULT_PRICING.A4;
-  return colorMode === 'color' ? rates.color : rates.bw;
+function rateKey(pageSize: string, colorMode: ColorMode): string {
+  return `${pageSize} - ${colorMode === 'color' ? 'Color' : 'B&W'}`;
 }
 
 interface LocalFile {
@@ -49,7 +51,31 @@ export default function XeroxUploader() {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [uploading, setUploading] = useState(false);
+  const [pricing, setPricing] = useState<Record<string, number>>(FALLBACK_PRICING);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Load live pricing from the admin-configured Xerox service, if set up.
+  // Falls back to FALLBACK_PRICING silently if not found / request fails —
+  // the uploader always works, it just uses defaults until an admin
+  // configures real rates in the Services tab.
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/services/xerox`);
+        const data = await res.json();
+        if (data.success && data.service?.pricing && Object.keys(data.service.pricing).length > 0) {
+          setPricing(data.service.pricing);
+        }
+      } catch {
+        // Keep FALLBACK_PRICING — not an error state worth surfacing to the customer.
+      }
+    })();
+  }, []);
+
+  const pricePerCopy = (pageSize: string, colorMode: ColorMode): number => {
+    const key = rateKey(pageSize, colorMode);
+    return pricing[key] ?? FALLBACK_PRICING[key] ?? 0;
+  };
 
   const handleFilesSelected = (fileList: FileList | null) => {
     if (!fileList) return;
@@ -91,7 +117,6 @@ export default function XeroxUploader() {
     setZoom(1);
   };
 
-  // Apply the saved crop to a File by drawing onto a canvas, returning a new File
   const applyCrop = async (localFile: LocalFile): Promise<File> => {
     if (!localFile.isImage || !localFile.croppedAreaPixels) return localFile.file;
 
@@ -131,7 +156,6 @@ export default function XeroxUploader() {
 
     setUploading(true);
     try {
-      // Apply crops, then upload all files in one batch
       const processedFiles = await Promise.all(files.map(applyCrop));
       const formData = new FormData();
       processedFiles.forEach(f => formData.append('files', f));
@@ -144,8 +168,6 @@ export default function XeroxUploader() {
         return;
       }
 
-      // Build one cart line per uploaded file, priced from the built-in
-      // page-size/color-mode rate table — no catalog product involved.
       const newCartItems = uploadData.files.map((uploaded: any, idx: number) => {
         const local = files[idx];
         const unitPrice = pricePerCopy(local.pageSize, local.colorMode);
@@ -157,10 +179,6 @@ export default function XeroxUploader() {
           category: 'xerox',
           price: unitPrice,
           qty: local.copies,
-          // Images show the customer's own uploaded photo as the cart
-          // thumbnail. Non-image files (PDF/DOCX) have no sensible photo,
-          // so they fall back to an emoji — same pattern every other cart
-          // item already uses when it has no image.
           ...(isUploadedImage ? { image: uploaded.url } : { emoji: '🖨️' }),
           printFile: {
             fileUrl: uploaded.url,
@@ -196,7 +214,6 @@ export default function XeroxUploader() {
         Upload photos or documents — set copies, orientation, and page size for each.
       </p>
 
-      {/* Upload dropzone */}
       <input
         ref={inputRef}
         type="file"
@@ -216,14 +233,12 @@ export default function XeroxUploader() {
         <span className="text-xs opacity-70">JPG, PNG, PDF, DOC, DOCX — up to 15MB each</span>
       </button>
 
-      {/* File list */}
       {files.length > 0 && (
         <div className="mt-5 space-y-3">
           {files.map(f => {
             const unitPrice = pricePerCopy(f.pageSize, f.colorMode);
             return (
             <div key={f.id} className={`rounded-2xl border p-3 flex gap-3 ${isDark ? 'bg-[#13102a] border-[#2d2450]' : 'bg-orange-50/40 border-orange-100'}`}>
-              {/* Thumbnail / icon */}
               <div className={`w-16 h-16 shrink-0 rounded-xl border overflow-hidden flex items-center justify-center ${isDark ? 'bg-[#1a1535] border-[#2d2450]' : 'bg-white border-gray-100'}`}>
                 {f.isImage ? (
                   <img src={f.previewUrl} alt={f.file.name} className="w-full h-full object-cover" />
@@ -241,14 +256,12 @@ export default function XeroxUploader() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 mt-2">
-                  {/* Copies stepper */}
                   <div className={`flex items-center border rounded-lg ${isDark ? 'border-[#2d2450]' : 'border-orange-200'}`}>
                     <button onClick={() => updateFile(f.id, { copies: Math.max(1, f.copies - 1) })} className="p-1.5"><Minus size={12} /></button>
                     <span className="text-xs font-bold w-6 text-center">{f.copies}</span>
                     <button onClick={() => updateFile(f.id, { copies: f.copies + 1 })} className="p-1.5"><Plus size={12} /></button>
                   </div>
 
-                  {/* Orientation */}
                   <button
                     onClick={() => updateFile(f.id, { orientation: f.orientation === 'portrait' ? 'landscape' : 'portrait' })}
                     className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border ${isDark ? 'border-[#2d2450] text-gray-400' : 'border-orange-200 text-gray-500'}`}
@@ -256,7 +269,6 @@ export default function XeroxUploader() {
                     <RotateCw size={11} /> {f.orientation}
                   </button>
 
-                  {/* Page size */}
                   <select
                     value={f.pageSize}
                     onChange={e => updateFile(f.id, { pageSize: e.target.value })}
@@ -265,7 +277,6 @@ export default function XeroxUploader() {
                     {PAGE_SIZES.map(size => <option key={size} value={size}>{size}</option>)}
                   </select>
 
-                  {/* Color mode */}
                   <select
                     value={f.colorMode}
                     onChange={e => updateFile(f.id, { colorMode: e.target.value as ColorMode })}
@@ -275,7 +286,6 @@ export default function XeroxUploader() {
                     <option value="color">Color</option>
                   </select>
 
-                  {/* Crop — images only */}
                   {f.isImage && (
                     <button
                       onClick={() => { setCropTarget(f); setCrop({ x: 0, y: 0 }); setZoom(1); }}
@@ -285,7 +295,6 @@ export default function XeroxUploader() {
                     </button>
                   )}
 
-                  {/* Live price for this file */}
                   <span className={`text-[10px] font-black ml-auto ${isDark ? 'text-indigo-300' : 'text-orange-600'}`}>
                     ₹{unitPrice} × {f.copies} = ₹{unitPrice * f.copies}
                   </span>
@@ -317,7 +326,6 @@ export default function XeroxUploader() {
         </div>
       )}
 
-      {/* Crop modal */}
       {cropTarget && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/70 p-4">
           <div className={`w-full max-w-lg rounded-3xl overflow-hidden ${isDark ? 'bg-[#1a1535]' : 'bg-white'}`}>

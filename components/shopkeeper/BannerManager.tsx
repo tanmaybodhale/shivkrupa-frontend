@@ -57,7 +57,7 @@ export default function BannerManager({ showToast }: { showToast: (msg: string) 
     try {
       const formData = new FormData();
       formData.append('image', file);
-      const uploadRes = await fetch(`${API_URL}/upload`, { method: 'POST', body: formData });
+      const uploadRes = await fetch(`${API_URL}/upload/banner`, { method: 'POST', body: formData });
       const uploadData = await uploadRes.json();
       if (!uploadData.success) {
         showToast(`❌ Upload failed: ${uploadData.message}`);

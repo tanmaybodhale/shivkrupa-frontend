@@ -12,7 +12,7 @@ import UsersManager from '@/components/shopkeeper/UsersManager';
 import ServicesManager from '@/components/shopkeeper/ServicesManager';
 import Toast from '@/components/shared/Toast';
 import { Product, Order } from '@/lib/types';
-import { Plus, Pencil, Trash2, Check, X, Package, ClipboardList, Infinity as InfinityIcon, Map, Users, Upload, Loader2, Images, Wrench } from 'lucide-react';
+import { Plus, Pencil, Trash2, Check, X, Package, ClipboardList, Infinity as InfinityIcon, Map, Users, Upload, Loader2, Images, Wrench, Image as ImageIcon } from 'lucide-react';
 import NotificationPanel from '@/components/shopkeeper/NotificationPanel';
 import BannerManager from '@/components/shopkeeper/BannerManager';
 
@@ -134,7 +134,7 @@ export default function AdminPage() {
                 : (isDark ? 'text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10' : 'text-gray-500 hover:text-orange-600 hover:bg-orange-50')
                 }`}
             >
-              <Image size={16} className="sm:w-[18px] sm:h-[18px]" />
+              <ImageIcon size={16} className="sm:w-[18px] sm:h-[18px]" />
               Banners
             </button>
             <button

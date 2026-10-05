@@ -7,7 +7,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { useLang } from '@/context/LanguageContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-const SLIDE_DURATION = 3000;
+const SLIDE_DURATION = 2000;
 
 interface Banner {
   _id: string;

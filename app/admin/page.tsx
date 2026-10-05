@@ -14,6 +14,7 @@ import Toast from '@/components/shared/Toast';
 import { Product, Order } from '@/lib/types';
 import { Plus, Pencil, Trash2, Check, X, Package, ClipboardList, Infinity as InfinityIcon, Map, Users, Upload, Loader2, Images, Wrench } from 'lucide-react';
 import NotificationPanel from '@/components/shopkeeper/NotificationPanel';
+import BannerManager from '@/components/shopkeeper/BannerManager';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -21,7 +22,7 @@ export default function AdminPage() {
   const { currentUser, refreshOrders, showToast, setOrders } = useApp();
   const { isDark } = useTheme();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'orders' | 'catalog' | 'services' | 'map' | 'users'>('orders');
+ const [activeTab, setActiveTab] = useState<'orders' | 'catalog' | 'services' | 'banners' | 'map' | 'users'>('orders');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -125,6 +126,17 @@ export default function AdminPage() {
               <Wrench size={16} className="sm:w-[18px] sm:h-[18px]" />
               Services
             </button>
+
+              <button
+              onClick={() => setActiveTab('banners')}
+              className={`flex justify-center items-center gap-2 px-3 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 ${activeTab === 'banners'
+                ? (isDark ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-900/30' : 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow-md shadow-orange-200')
+                : (isDark ? 'text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10' : 'text-gray-500 hover:text-orange-600 hover:bg-orange-50')
+                }`}
+            >
+              <Image size={16} className="sm:w-[18px] sm:h-[18px]" />
+              Banners
+            </button>
             <button
               onClick={() => setActiveTab('map')}
               className={`flex justify-center items-center gap-2 px-3 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 ${activeTab === 'map'
@@ -163,6 +175,9 @@ export default function AdminPage() {
 
           {activeTab === 'services' && (
             <ServicesManager showToast={showToast} />
+          )}
+          {activeTab === 'banners' && (
+            <BannerManager showToast={showToast} />
           )}
 
           {activeTab === 'map' && (

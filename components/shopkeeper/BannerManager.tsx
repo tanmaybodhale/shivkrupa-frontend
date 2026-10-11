@@ -2,29 +2,55 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useTheme } from '@/context/ThemeContext';
-import { Plus, Pencil, Trash2, Check, X, Image as ImageIcon, Loader2, Power, GripVertical } from 'lucide-react';
+import { Plus, Pencil, Trash2, Check, X, Image as ImageIcon, Loader2, Power, Smartphone } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
+// Recommended sizes (shown to the admin)
+const DESKTOP_MIN_WIDTH = 1600; // ideal: 2400 x 1000 (21:9)
+const MOBILE_MIN_WIDTH = 800; // ideal: 1080 x 810 (4:3)
+
 interface Banner {
   _id: string;
-  image: string;
+  image: string; // desktop / default image
+  mobileImage?: string; // optional image shown on phones
   link?: string;
   title?: string;
   order: number;
   active: boolean;
 }
 
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+// Read an image's pixel size in the browser
+const getImageSize = (file: File) =>
+  new Promise<{ width: number; height: number } | null>(resolve => {
+    const url = URL.createObjectURL(file);
+    const img = new window.Image();
+    img.onload = () => {
+      resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      URL.revokeObjectURL(url);
+    };
+    img.onerror = () => {
+      resolve(null);
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+  });
+
 export default function BannerManager({ showToast }: { showToast: (msg: string) => void }) {
   const { isDark } = useTheme();
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [mobileUploadingId, setMobileUploadingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editLink, setEditLink] = useState('');
   const [editTitle, setEditTitle] = useState('');
   const [editOrder, setEditOrder] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mobileInputRef = useRef<HTMLInputElement>(null);
+  const mobileTargetId = useRef<string | null>(null);
 
   useEffect(() => {
     fetchBanners();
@@ -42,37 +68,52 @@ export default function BannerManager({ showToast }: { showToast: (msg: string) 
     }
   };
 
-  const uploadNewBanner = async (file: File) => {
-    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    if (!allowed.includes(file.type)) {
+  // Validate type/size and warn (not block) about low resolution
+  const validateImage = async (file: File, minWidth: number): Promise<boolean> => {
+    if (!ALLOWED_TYPES.includes(file.type)) {
       showToast(`❌ Invalid file type: ${file.type}`);
-      return;
+      return false;
     }
     if (file.size > 5 * 1024 * 1024) {
       showToast('❌ File too large. Maximum size is 5 MB.');
-      return;
+      return false;
     }
+    const size = await getImageSize(file);
+    if (size && size.width < minWidth) {
+      showToast(`⚠️ Image is only ${size.width}px wide and may look blurry. Use at least ${minWidth}px.`);
+    }
+    return true;
+  };
+
+  const uploadImageFile = async (file: File): Promise<string | null> => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const uploadRes = await fetch(`${API_URL}/upload/banner`, { method: 'POST', body: formData });
+    const uploadData = await uploadRes.json();
+    if (!uploadData.success) {
+      showToast(`❌ Upload failed: ${uploadData.message}`);
+      return null;
+    }
+    return uploadData.url as string;
+  };
+
+  const uploadNewBanner = async (file: File) => {
+    if (!(await validateImage(file, DESKTOP_MIN_WIDTH))) return;
 
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('image', file);
-      const uploadRes = await fetch(`${API_URL}/upload/banner`, { method: 'POST', body: formData });
-      const uploadData = await uploadRes.json();
-      if (!uploadData.success) {
-        showToast(`❌ Upload failed: ${uploadData.message}`);
-        return;
-      }
+      const url = await uploadImageFile(file);
+      if (!url) return;
 
       const createRes = await fetch(`${API_URL}/banners`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: uploadData.url, order: banners.length, active: true }),
+        body: JSON.stringify({ image: url, order: banners.length, active: true }),
       });
       const createData = await createRes.json();
       if (createData.success) {
         setBanners(prev => [...prev, createData.banner]);
-        showToast('✅ Banner added! Set a link below if it should be clickable.');
+        showToast('✅ Banner added! Add a mobile image and a link below if needed.');
       } else {
         showToast(`❌ ${createData.message || 'Failed to create banner'}`);
       }
@@ -81,6 +122,42 @@ export default function BannerManager({ showToast }: { showToast: (msg: string) 
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  // Set (or replace) the phone-only image of an existing banner
+  const uploadMobileImage = async (bannerId: string, file: File) => {
+    if (!(await validateImage(file, MOBILE_MIN_WIDTH))) return;
+
+    setMobileUploadingId(bannerId);
+    try {
+      const url = await uploadImageFile(file);
+      if (!url) return;
+      await saveMobileImage(bannerId, url);
+    } catch (error: any) {
+      showToast(`❌ Upload failed: ${error.message}`);
+    } finally {
+      setMobileUploadingId(null);
+      if (mobileInputRef.current) mobileInputRef.current.value = '';
+    }
+  };
+
+  const saveMobileImage = async (bannerId: string, url: string) => {
+    try {
+      const res = await fetch(`${API_URL}/banners/${bannerId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mobileImage: url }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setBanners(prev => prev.map(b => (b._id === bannerId ? data.banner : b)));
+        showToast(url ? '✅ Mobile image saved' : '✅ Mobile image removed');
+      } else {
+        showToast(`❌ ${data.message || 'Failed to save mobile image'}`);
+      }
+    } catch {
+      showToast('❌ Failed to save mobile image');
     }
   };
 
@@ -158,7 +235,10 @@ export default function BannerManager({ showToast }: { showToast: (msg: string) 
         <div>
           <h3 className={`font-black text-xl ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>Homepage Banner Slideshow</h3>
           <p className="text-sm font-medium text-gray-500 mt-0.5">
-            Advances every 3 seconds. Tap a slide to pause/resume. Order controls sequence.
+            Tap a slide to pause/resume. Order controls sequence.
+          </p>
+          <p className={`text-xs font-semibold mt-2 ${isDark ? 'text-indigo-300' : 'text-orange-600'}`}>
+            Best quality: desktop image 2400 × 1000 px (wide), mobile image 1080 × 810 px (4:3). Keep text and faces in the middle so nothing important sits at the edges. Max 5 MB each.
           </p>
         </div>
         <input
@@ -171,21 +251,33 @@ export default function BannerManager({ showToast }: { showToast: (msg: string) 
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
-          className={`flex items-center gap-2 px-5 py-2.5 text-white rounded-xl font-bold transition-all shadow-md active:scale-95 disabled:opacity-60 ${isDark ? 'bg-gradient-to-r from-indigo-600 to-purple-600' : 'bg-gradient-to-r from-orange-500 to-yellow-500'}`}
+          className={`flex items-center gap-2 px-5 py-2.5 text-white rounded-xl font-bold transition-all shadow-md active:scale-95 disabled:opacity-60 shrink-0 ${isDark ? 'bg-gradient-to-r from-indigo-600 to-purple-600' : 'bg-gradient-to-r from-orange-500 to-yellow-500'}`}
         >
           {uploading ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} strokeWidth={3} />}
           {uploading ? 'Uploading…' : 'Add Banner'}
         </button>
       </div>
 
+      {/* One hidden input shared by every banner's "mobile image" button */}
+      <input
+        ref={mobileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        className="hidden"
+        onChange={e => {
+          const f = e.target.files?.[0];
+          if (f && mobileTargetId.current) uploadMobileImage(mobileTargetId.current, f);
+        }}
+      />
+
       {/* Banner list */}
       <div className="space-y-3">
         {banners.map(banner => (
           <div key={banner._id} className={`rounded-2xl border overflow-hidden ${isDark ? 'bg-[#1a1535] border-[#2d2450]' : 'bg-white border-orange-100'}`}>
             <div className="flex items-stretch">
-              {/* Thumbnail */}
-              <div className={`w-28 sm:w-40 shrink-0 ${isDark ? 'bg-[#13102a]' : 'bg-gray-50'}`}>
-                <img src={banner.image} alt={banner.title || 'Banner'} className="w-full h-full object-cover" style={{ aspectRatio: '21/9' }} />
+              {/* Thumbnail: shown uncropped so the admin sees the whole image */}
+              <div className={`w-28 sm:w-40 shrink-0 flex items-center justify-center ${isDark ? 'bg-[#13102a]' : 'bg-gray-50'}`}>
+                <img src={banner.image} alt={banner.title || 'Banner'} className="w-full h-full object-contain" style={{ aspectRatio: '21/9' }} />
               </div>
 
               <div className="flex-1 p-4 min-w-0">
@@ -248,6 +340,38 @@ export default function BannerManager({ showToast }: { showToast: (msg: string) 
                         {banner.active ? 'LIVE' : 'HIDDEN'}
                       </button>
                     </div>
+
+                    {/* Mobile image */}
+                    <div className={`mt-3 flex items-center gap-2 rounded-xl border px-2.5 py-2 ${isDark ? 'border-[#2d2450] bg-[#13102a]' : 'border-orange-100 bg-orange-50/40'}`}>
+                      <div className={`flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border ${isDark ? 'border-[#2d2450] bg-[#1a1535]' : 'border-orange-100 bg-white'}`}>
+                        {banner.mobileImage ? (
+                          <img src={banner.mobileImage} alt="Mobile banner" className="h-full w-full object-cover" />
+                        ) : (
+                          <Smartphone size={16} className={isDark ? 'text-gray-500' : 'text-gray-400'} />
+                        )}
+                      </div>
+                      <p className={`min-w-0 flex-1 text-[11px] font-semibold leading-tight ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {banner.mobileImage ? 'Mobile image set' : 'No mobile image — desktop image is used on phones'}
+                      </p>
+                      <button
+                        onClick={() => { mobileTargetId.current = banner._id; mobileInputRef.current?.click(); }}
+                        disabled={mobileUploadingId === banner._id}
+                        className={`shrink-0 flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-bold disabled:opacity-60 ${isDark ? 'text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white' : 'text-orange-600 bg-orange-100 hover:bg-orange-500 hover:text-white'}`}
+                      >
+                        {mobileUploadingId === banner._id ? <Loader2 size={12} className="animate-spin" /> : <ImageIcon size={12} />}
+                        {banner.mobileImage ? 'Replace' : 'Upload'}
+                      </button>
+                      {banner.mobileImage && (
+                        <button
+                          onClick={() => saveMobileImage(banner._id, '')}
+                          aria-label="Remove mobile image"
+                          className={`shrink-0 rounded-lg p-1.5 ${isDark ? 'text-red-400 hover:bg-red-500/10' : 'text-red-500 hover:bg-red-50'}`}
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+
                     <div className="flex gap-2 mt-3">
                       <button onClick={() => startEdit(banner)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold ${isDark ? 'text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white' : 'text-orange-600 bg-orange-50 hover:bg-orange-500 hover:text-white'}`}>
                         <Pencil size={12} /> Edit

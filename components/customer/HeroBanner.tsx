@@ -11,7 +11,8 @@ const SLIDE_DURATION = 2000;
 
 interface Banner {
   _id: string;
-  image: string;
+  image: string; // desktop / default image
+  mobileImage?: string; // optional image used on phones (< 640px)
   link?: string;
   title?: string;
   order: number;
@@ -43,6 +44,17 @@ export default function HeroBanner() {
     };
     fetchBanners();
   }, []);
+
+  // Preload every slide so images never flash blank / re-render soft while sliding
+  useEffect(() => {
+    banners.forEach(b => {
+      [b.image, b.mobileImage].forEach(src => {
+        if (!src) return;
+        const img = new window.Image();
+        img.src = src;
+      });
+    });
+  }, [banners]);
 
   // Auto-advance, unless paused or there's nothing to rotate through
   useEffect(() => {
@@ -77,9 +89,10 @@ export default function HeroBanner() {
 
     return (
       <div
-        className={`relative overflow-hidden rounded-3xl mt-4 mb-8 border shadow-sm select-none ${isDark ? 'border-[#2d2450]' : 'border-orange-200'
+        // Box shape changes with the screen: 4:3 phone, 16:9 tablet, 21:9 desktop.
+        // The image is never cropped (object-contain); any spare space is filled with a blurred copy of the banner.
+        className={`group relative overflow-hidden rounded-3xl mt-4 mb-8 border shadow-sm select-none aspect-[4/3] sm:aspect-[16/9] lg:aspect-[21/9] ${isDark ? 'border-[#2d2450] bg-[#13102a]' : 'border-orange-200 bg-orange-50'
           }`}
-        style={{ aspectRatio: '21 / 9' }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
@@ -88,11 +101,23 @@ export default function HeroBanner() {
 
         {/* Slide image */}
         <div className="absolute inset-0 cursor-pointer" onClick={handleSlideClick}>
+          {/* Blurred backdrop (only visible where the banner doesn't fill the box) */}
           <img
             src={current.image}
-            alt={current.title || 'Banner'}
-            className="w-full h-full object-cover transition-opacity duration-300"
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-60"
           />
+          <picture className="absolute inset-0 block">
+            {current.mobileImage && <source media="(max-width: 639px)" srcSet={current.mobileImage} />}
+            <img
+              key={current._id}
+              src={current.image}
+              alt={current.title || 'Banner'}
+              decoding="async"
+              className="relative w-full h-full object-contain transition-opacity duration-300"
+            />
+          </picture>
         </div>
 
         {/* Pause indicator */}
@@ -119,17 +144,15 @@ export default function HeroBanner() {
           <>
             <button
               onClick={(e) => { e.stopPropagation(); goTo(index - 1); setPaused(true); }}
-              className="hidden sm:flex absolute left-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-sm text-white items-center justify-center transition-all opacity-0 hover:opacity-100 group-hover:opacity-100"
-              style={{ opacity: 0 }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+              aria-label="Previous banner"
+              className="hidden sm:flex absolute left-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-sm text-white items-center justify-center transition-all opacity-0 group-hover:opacity-100"
             >
               <ChevronLeft size={18} />
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); goTo(index + 1); setPaused(true); }}
-              className="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-sm text-white items-center justify-center transition-all"
-              style={{ opacity: 0 }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+              aria-label="Next banner"
+              className="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-sm text-white items-center justify-center transition-all opacity-0 group-hover:opacity-100"
             >
               <ChevronRight size={18} />
             </button>
@@ -142,6 +165,7 @@ export default function HeroBanner() {
             {banners.map((_, i) => (
               <button
                 key={i}
+                aria-label={`Go to banner ${i + 1}`}
                 onClick={(e) => { e.stopPropagation(); goTo(i); setPaused(true); }}
                 className={`rounded-full transition-all ${i === index ? 'w-6 h-2 bg-white' : 'w-2 h-2 bg-white/50 hover:bg-white/80'}`}
               />

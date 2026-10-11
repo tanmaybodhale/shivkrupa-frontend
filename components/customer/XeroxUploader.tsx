@@ -37,7 +37,8 @@ interface LocalFile {
   colorMode: ColorMode;
   croppedAreaPixels: Area | null;
   pages: number; // pages in ONE copy of this file
-  pagesKnown: boolean; // false = DOC/DOCX etc., customer must enter it
+  pagesKnown: boolean; // false = couldn't count, customer must enter it
+  countFailed: boolean; // couldn't count -> customer must upload as PDF
   countingPages: boolean;
 }
 
@@ -98,10 +99,18 @@ export default function XeroxUploader() {
       showToast('❌ Printing service is not set up yet. Please contact the store.');
       return;
     }
+    // Only photos and PDFs are supported (Word / Excel etc. are rejected)
+    const allowed = Array.from(fileList).filter(
+      f => f.type.startsWith('image/') || f.type === 'application/pdf'
+    );
+    if (allowed.length < fileList.length) {
+      showToast('❌ Only JPG, PNG and PDF files are supported. Word and Excel files were skipped.');
+    }
+    if (allowed.length === 0) return;
     const defaultSize = options.sizes[0];
     const defaultMode = typesFor(defaultSize)[0] || 'bw';
 
-    const newFiles: LocalFile[] = Array.from(fileList).map(file => {
+    const newFiles: LocalFile[] = allowed.map(file => {
       const isImage = file.type.startsWith('image/');
       const isPdf = file.type === 'application/pdf';
       return {
@@ -117,19 +126,24 @@ export default function XeroxUploader() {
         croppedAreaPixels: null,
         pages: 1,
         pagesKnown: isImage,
+        countFailed: false,
         countingPages: !isImage,
       };
     });
     setFiles(prev => [...prev, ...newFiles]);
     if (newFiles.length > 0) setSelectedId(newFiles[0].id);
 
-    // Count pages for PDFs (and flag DOC/DOCX for manual entry)
+    // Count pages for PDFs. If a PDF can't be counted, it is flagged (no manual entry).
     newFiles.forEach(async nf => {
       if (nf.isImage) return;
       const n = await countPages(nf.file);
       setFiles(prev =>
         prev.map(f =>
-          f.id === nf.id ? { ...f, pages: n ?? 1, pagesKnown: n !== null, countingPages: false } : f
+          f.id === nf.id
+            ? n !== null
+              ? { ...f, pages: n, pagesKnown: true, countingPages: false, countFailed: false }
+              : { ...f, countingPages: false, countFailed: true }
+            : f
         )
       );
     });
@@ -214,7 +228,6 @@ export default function XeroxUploader() {
   const fileTotal = (f: LocalFile) =>
     lineTotal(pricing, { size: f.pageSize, type: MODE_LABEL[f.colorMode], pages: f.pages, copies: f.copies });
 
-  const totalPages = files.reduce((s, f) => s + f.pages * f.copies, 0);
   const grandTotal = files.reduce((s, f) => s + fileTotal(f), 0);
 
   const handleAddAllToCart = async () => {
@@ -228,6 +241,12 @@ export default function XeroxUploader() {
     }
     if (files.some(f => f.countingPages)) {
       showToast('⏳ Still counting pages, one moment…');
+      return;
+    }
+    const failed = files.find(f => f.countFailed);
+    if (failed) {
+      setSelectedId(failed.id);
+      showToast(`❌ ${failed.file.name}: couldn't read the page count. Please upload a different PDF.`);
       return;
     }
     const bad = files.find(f => pricePerPage(pricing, f.pageSize, MODE_LABEL[f.colorMode]) <= 0 || f.pages < 1);
@@ -321,21 +340,50 @@ export default function XeroxUploader() {
   const strong = isDark ? 'text-gray-100' : 'text-gray-900';
   const divider = isDark ? 'border-[#2d2450]' : 'border-gray-100';
 
+  // Brand accent: orange (light) / indigo (dark)
+  const ac = isDark
+    ? {
+        border: 'border-indigo-400',
+        hoverBorder: 'hover:border-indigo-400/50',
+        hoverTint: 'hover:bg-indigo-500/10',
+        solid: 'bg-indigo-500',
+        text: 'text-indigo-400',
+        ring: 'focus-visible:ring-indigo-400',
+        shadow: 'shadow-indigo-500/20',
+        focusBorder: 'focus:border-indigo-400',
+        activeBtn: 'border-indigo-400 bg-indigo-500/15 text-indigo-200 shadow-md shadow-indigo-500/10',
+        orient: 'border-indigo-400 bg-indigo-500/40',
+        addTile: 'border-[#2d2450] text-indigo-400 hover:bg-indigo-500/10',
+      }
+    : {
+        border: 'border-orange-500',
+        hoverBorder: 'hover:border-orange-300',
+        hoverTint: 'hover:bg-orange-50/60',
+        solid: 'bg-orange-500',
+        text: 'text-orange-600',
+        ring: 'focus-visible:ring-orange-400',
+        shadow: 'shadow-orange-500/20',
+        focusBorder: 'focus:border-orange-500',
+        activeBtn: 'border-orange-500 bg-orange-50 text-orange-900 shadow-md shadow-orange-500/10',
+        orient: 'border-orange-500 bg-orange-200',
+        addTile: 'border-gray-200 text-orange-600 hover:border-orange-400 hover:bg-orange-50/50',
+      };
+
   // Choice buttons (size / colour / orientation)
   const choiceCls = (active: boolean) =>
-    `relative flex items-center gap-2.5 rounded-xl border-2 px-3 py-2.5 text-left transition-all active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
+    `relative flex items-center gap-2.5 rounded-xl border-2 px-3 py-2.5 text-left transition-all active:scale-[0.97] focus:outline-none focus-visible:ring-2 ${ac.ring} ${
       active
         ? isDark
-          ? 'border-emerald-400 bg-emerald-500/15 text-emerald-200 shadow-md shadow-emerald-500/10'
-          : 'border-emerald-500 bg-emerald-50 text-emerald-900 shadow-md shadow-emerald-500/10'
+          ? ac.activeBtn
+          : ac.activeBtn
         : isDark
-        ? 'border-[#2d2450] bg-[#13102a] text-gray-300 hover:border-emerald-400/50'
-        : 'border-gray-200 bg-white text-gray-700 hover:border-emerald-300 hover:bg-emerald-50/40'
+        ? `border-[#2d2450] bg-[#13102a] text-gray-300 ${ac.hoverBorder}`
+        : `border-gray-200 bg-white text-gray-700 ${ac.hoverBorder} ${ac.hoverTint}`
     }`;
 
   const CheckDot = ({ active }: { active: boolean }) =>
     active ? (
-      <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-white shadow">
+      <span className={`absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full ${ac.solid} text-white shadow`}>
         <Check size={10} strokeWidth={4} />
       </span>
     ) : null;
@@ -405,7 +453,7 @@ export default function XeroxUploader() {
         ref={inputRef}
         type="file"
         multiple
-        accept="image/jpeg,image/png,image/webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        accept="image/jpeg,image/png,image/webp,application/pdf"
         className="hidden"
         onChange={e => {
           handleFilesSelected(e.target.files);
@@ -426,7 +474,7 @@ export default function XeroxUploader() {
         >
           <Upload size={28} />
           <span className="font-bold text-sm">Tap to upload images or documents</span>
-          <span className="text-xs opacity-70">JPG, PNG, PDF, DOC, DOCX — up to 15MB each</span>
+          <span className="text-xs opacity-70">JPG, PNG, PDF — up to 15MB each</span>
         </button>
       )}
 
@@ -444,17 +492,17 @@ export default function XeroxUploader() {
                     onClick={() => setSelectedId(f.id)}
                     onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setSelectedId(f.id)}
                     aria-pressed={active}
-                    className={`relative aspect-[3/4] cursor-pointer overflow-hidden rounded-2xl border-2 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
+                    className={`relative aspect-[3/4] cursor-pointer overflow-hidden rounded-2xl border-2 transition-all focus:outline-none focus-visible:ring-2 ${ac.ring} ${
                       active
-                        ? 'border-emerald-500 shadow-lg shadow-emerald-500/20'
+                        ? `${ac.border} shadow-lg ${ac.shadow}`
                         : isDark
-                        ? 'border-[#2d2450] hover:border-emerald-400/50'
-                        : 'border-gray-200 hover:border-emerald-300'
+                        ? `border-[#2d2450] ${ac.hoverBorder}`
+                        : `border-gray-200 ${ac.hoverBorder}`
                     }`}
                   >
                     {renderPreview(f)}
                     {f.isImage && f.croppedAreaPixels && (
-                      <span className="absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                      <span className={`absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded-full ${ac.solid} px-2 py-0.5 text-[10px] font-bold text-white`}>
                         <CropIcon size={10} /> Cropped
                       </span>
                     )}
@@ -469,8 +517,8 @@ export default function XeroxUploader() {
                       <X size={14} />
                     </button>
                   </div>
-                  <p className={`mt-1.5 truncate text-center text-xs font-semibold ${active ? 'text-emerald-600' : muted}`} title={f.file.name}>
-                    File {i + 1} ({f.countingPages ? 'counting…' : pageLabel(f.pages)})
+                  <p className={`mt-1.5 truncate text-center text-xs font-semibold ${active ? ac.text : muted}`} title={f.file.name}>
+                    File {i + 1} ({f.countingPages ? 'counting…' : f.countFailed ? 'unreadable' : pageLabel(f.pages)})
                   </p>
                 </div>
               );
@@ -482,12 +530,10 @@ export default function XeroxUploader() {
                 onClick={() => inputRef.current?.click()}
                 disabled={!serviceReady}
                 className={`flex aspect-[3/4] w-full flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed transition-all disabled:opacity-50 ${
-                  isDark
-                    ? 'border-[#2d2450] text-emerald-400 hover:bg-emerald-500/10'
-                    : 'border-gray-200 text-emerald-600 hover:border-emerald-400 hover:bg-emerald-50/50'
+                  ac.addTile
                 }`}
               >
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500 text-white shadow-md">
+                <span className={`flex h-9 w-9 items-center justify-center rounded-full ${ac.solid} text-white shadow-md`}>
                   <Plus size={20} />
                 </span>
                 <span className="text-xs font-bold">Add files</span>
@@ -505,7 +551,7 @@ export default function XeroxUploader() {
               <div className="flex items-center justify-between gap-3 pb-4">
                 <div className="min-w-0">
                   <p className={`text-sm font-black ${strong}`}>
-                    File {selectedIndex + 1} ({selected.countingPages ? 'counting pages…' : pageLabel(selected.pages)})
+                    File {selectedIndex + 1} ({selected.countingPages ? 'counting pages…' : selected.countFailed ? 'pages unknown' : pageLabel(selected.pages)})
                   </p>
                   <p className={`truncate text-[11px] ${muted}`}>{selected.file.name}</p>
                 </div>
@@ -518,10 +564,10 @@ export default function XeroxUploader() {
                     }}
                     className={`flex shrink-0 items-center gap-1.5 rounded-xl border-2 px-3 py-2 text-xs font-bold transition-all active:scale-95 ${
                       selected.croppedAreaPixels
-                        ? 'border-emerald-500 bg-emerald-500 text-white'
+                        ? `${ac.border} ${ac.solid} text-white`
                         : isDark
-                        ? 'border-[#2d2450] text-gray-300 hover:border-emerald-400/50'
-                        : 'border-gray-200 text-gray-700 hover:border-emerald-300'
+                        ? `border-[#2d2450] text-gray-300 ${ac.hoverBorder}`
+                        : `border-gray-200 text-gray-700 ${ac.hoverBorder}`
                     }`}
                   >
                     <CropIcon size={14} /> {selected.croppedAreaPixels ? 'Cropped' : 'Crop'}
@@ -529,21 +575,15 @@ export default function XeroxUploader() {
                 )}
               </div>
 
-              {/* Pages (only DOC / DOCX where we can't count) */}
-              {!selected.countingPages && !selected.pagesKnown && (
-                <Section title="Pages in this file" hint="We couldn't count the pages of this document. Please enter them.">
-                  <input
-                    type="number"
-                    min={1}
-                    value={selected.pages}
-                    onChange={e =>
-                      updateFile(selected.id, { pages: Math.max(1, Math.floor(Number(e.target.value)) || 1) })
-                    }
-                    className={`w-28 rounded-xl border-2 px-3 py-2 text-sm font-bold outline-none focus:border-emerald-500 ${
-                      isDark ? 'bg-[#1a1535] border-[#2d2450] text-gray-200' : 'bg-white border-gray-200 text-gray-800'
-                    }`}
-                  />
-                </Section>
+              {/* Shown only when a PDF's page count could not be read */}
+              {selected.countFailed && (
+                <div
+                  className={`mb-4 rounded-xl border px-4 py-3 text-xs font-semibold ${
+                    isDark ? 'border-red-500/30 bg-red-500/10 text-red-300' : 'border-red-200 bg-red-50 text-red-700'
+                  }`}
+                >
+                  We couldn&apos;t read the page count of this PDF (it may be protected or damaged). Please remove it and upload another copy.
+                </div>
               )}
 
               {/* Copies */}
@@ -554,12 +594,12 @@ export default function XeroxUploader() {
                     File {selectedIndex + 1} ({pageLabel(selected.pages)})
                   </p>
                 </div>
-                <div className={`flex items-center overflow-hidden rounded-xl border-2 ${isDark ? 'border-emerald-400/60' : 'border-emerald-500'}`}>
+                <div className={`flex items-center overflow-hidden rounded-xl border-2 ${ac.border}`}>
                   <button
                     onClick={() => updateFile(selected.id, { copies: Math.max(1, selected.copies - 1) })}
                     disabled={selected.copies <= 1}
                     aria-label="Fewer copies"
-                    className="flex h-10 w-10 items-center justify-center text-emerald-600 hover:bg-emerald-500/10 disabled:opacity-30"
+                    className={`flex h-10 w-10 items-center justify-center ${ac.text} ${ac.hoverTint} disabled:opacity-30`}
                   >
                     <Minus size={16} />
                   </button>
@@ -567,7 +607,7 @@ export default function XeroxUploader() {
                   <button
                     onClick={() => updateFile(selected.id, { copies: selected.copies + 1 })}
                     aria-label="More copies"
-                    className="flex h-10 w-10 items-center justify-center text-emerald-600 hover:bg-emerald-500/10"
+                    className={`flex h-10 w-10 items-center justify-center ${ac.text} ${ac.hoverTint}`}
                   >
                     <Plus size={16} />
                   </button>
@@ -649,7 +689,7 @@ export default function XeroxUploader() {
                             <span
                               className={`block rounded-[3px] border-2 ${
                                 o === 'portrait' ? 'h-6 w-4' : 'h-4 w-6'
-                              } ${active ? 'border-emerald-500 bg-emerald-200' : 'border-gray-400 bg-gray-100'}`}
+                              } ${active ? ac.orient : 'border-gray-400 bg-gray-100'}`}
                             />
                           </span>
                           <span className="min-w-0">
@@ -674,25 +714,22 @@ export default function XeroxUploader() {
             </div>
           )}
 
-          {/* Summary / add to cart bar */}
-          <div
-            className={`sticky bottom-3 z-10 mt-5 flex items-center gap-3 rounded-2xl border-2 p-3 sm:p-4 shadow-xl backdrop-blur ${
-              isDark ? 'border-emerald-400/40 bg-[#1a1535]/95' : 'border-emerald-500 bg-emerald-50/95'
-            }`}
-          >
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-yellow-100 text-xl sm:h-12 sm:w-12">
-              📄
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className={`text-xs font-semibold ${muted}`}>
-                Total {pageLabel(totalPages)} · {files.length} {files.length === 1 ? 'file' : 'files'}
-              </p>
-              <p className={`text-lg font-black leading-tight ${strong}`}>₹{grandTotal}</p>
+          {/* Summary / add to cart (same as before) */}
+          <div className="flex items-center justify-between pt-4">
+            <div className="space-y-0.5">
+              <span className={`block text-xs font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                Total copies: {files.reduce((c, f) => c + f.copies, 0)}
+              </span>
+              <span className={`block text-sm font-black ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
+                Total: ₹{grandTotal}
+              </span>
             </div>
             <button
               onClick={handleAddAllToCart}
               disabled={uploading || files.some(f => f.countingPages)}
-              className="shrink-0 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-lg transition-all hover:bg-emerald-700 active:scale-95 disabled:opacity-60 sm:px-6"
+              className={`px-6 py-3 rounded-2xl font-bold text-sm text-white shadow-lg transition-all disabled:opacity-60 ${
+                isDark ? 'bg-gradient-to-r from-indigo-600 to-purple-600' : 'bg-gradient-to-r from-orange-500 to-yellow-500'
+              }`}
             >
               {uploading ? 'Uploading…' : `Add to Cart (${files.length})`}
             </button>
@@ -721,7 +758,7 @@ export default function XeroxUploader() {
               </button>
               <button
                 onClick={saveCrop}
-                className="px-6 py-2 rounded-xl font-bold text-sm text-white bg-emerald-600 hover:bg-emerald-700"
+                className={`px-6 py-2 rounded-xl font-bold text-sm text-white ${isDark ? 'bg-indigo-600' : 'bg-orange-500'}`}
               >
                 Save Crop
               </button>

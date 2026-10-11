@@ -104,7 +104,7 @@ export default function XeroxUploader() {
       f => f.type.startsWith('image/') || f.type === 'application/pdf'
     );
     if (allowed.length < fileList.length) {
-      showToast('❌ Only JPG, PNG and PDF files are supported. Word and Excel files were skipped.');
+      showToast('❌ Only JPG, PNG and PDF files are supported.Convert them to PDF first.');
     }
     if (allowed.length === 0) return;
     const defaultSize = options.sizes[0];

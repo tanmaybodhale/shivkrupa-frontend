@@ -164,6 +164,8 @@ export function printReceipt(order: ReceiptOrder) {
   <div class="small">Payment: ${esc((order.paymentMethod || 'COD').toUpperCase())}</div>
   <div class="divider"></div>
   <div class="center small">Thank you for shopping with us!</div>
+  <div class="center small" style="margin-top:6px;">Jalna❤️, Maharashtra</div>
+  <div class="center small" style="margin-top:2px;">Made with ❤️ Love in India</div>
 
   <script>
     window.onload = function() {

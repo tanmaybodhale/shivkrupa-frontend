@@ -253,7 +253,7 @@ export default function CustomerOrdersPage() {
                   <div className="p-5">
                     <div className="space-y-4">
                       {(order.items || []).map((item: any, idx: number) => {
-                        const pf = item.printFile;
+                        const pf = item.printDetails ?? item.printFile;
                         const pages = pf?.pages ?? 0;
                         // Saved rate from when the order was placed (not today's admin rate)
                         const rate = pf?.pricePerPage ?? (pages > 0 ? item.price / pages : 0);

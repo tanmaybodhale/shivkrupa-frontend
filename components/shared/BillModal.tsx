@@ -4,7 +4,7 @@ import { Order } from '@/lib/types';
 import { DELIVERY_CHARGE } from '@/lib/data';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/context/ThemeContext';
-import { printReceipt } from '@/utils/printReceipt';
+import { printReceipt } from '@/components/shopkeeper/utils/printReceipt';
 import { CheckCircle2, Printer, X, Receipt, MapPin } from 'lucide-react';
 
 interface Props {

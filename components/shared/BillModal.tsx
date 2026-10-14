@@ -82,7 +82,7 @@ export default function BillModal({ order, onClose }: Props) {
             <div className={`rounded-2xl border shadow-sm overflow-hidden ${isDark ? 'bg-[#1a1535] border-[#2d2450] shadow-black/10' : 'bg-white border-gray-100'}`}>
               <div className={`divide-y ${isDark ? 'divide-[#2d2450]' : 'divide-gray-50'}`}>
                 {order.items.map((item, i) => {
-                  const pf = (item as any).printFile;
+                  const pf = (item as any).printDetails ?? (item as any).printFile;
                   const pages = pf?.pages ?? 0;
                   const rate = pf?.pricePerPage ?? (pages > 0 ? item.price / pages : 0);
                   return (

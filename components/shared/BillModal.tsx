@@ -4,6 +4,7 @@ import { Order } from '@/lib/types';
 import { DELIVERY_CHARGE } from '@/lib/data';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/context/ThemeContext';
+import { printReceipt } from '@/utils/printReceipt';
 import { CheckCircle2, Printer, X, Receipt, MapPin } from 'lucide-react';
 
 interface Props {
@@ -18,117 +19,14 @@ export default function BillModal({ order, onClose }: Props) {
 
   const freeDelivery = order.delivery === 0;
 
-  const addressStr = order.deliveryAddress
-    ? [order.deliveryAddress.street, order.deliveryAddress.area, order.deliveryAddress.city, order.deliveryAddress.pincode].filter(Boolean).join(', ')
-    : '';
-
   const handleClose = () => {
     onClose?.();
     showToast('🎉 Order placed! Thank you for shopping with us!');
   };
 
-  const printBill = () => {
-    const addressHtml = addressStr ? `
-      <div class="sec">Delivery Address</div>
-      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:16px;padding:16px;margin-bottom:24px;">
-        <p style="font-size:13px;font-weight:600;color:#166534;">${addressStr}</p>
-        ${order.deliveryAddress?.location ? `<p style="font-size:11px;color:#15803d;margin-top:8px;">📍 Location coordinates: ${order.deliveryAddress.location.lat.toFixed(4)}, ${order.deliveryAddress.location.lng.toFixed(4)}</p>` : ''}
-      </div>
-    ` : '';
-
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Shivkrupa Emporium - Receipt</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@700;900&display=swap');
-    *{margin:0;padding:0;box-sizing:border-box;}
-    body{font-family:'Inter',sans-serif;background:#f9fafb;padding:24px;color:#111827;}
-    .wrap{max-width:460px;margin:0 auto;background:#fff;border:1px solid #ffedd5;border-radius:24px;overflow:hidden;box-shadow:0 10px 25px rgba(234,88,12,.05);}
-    .hdr{background:linear-gradient(135deg, #f97316, #eab308);padding:32px 24px;text-align:center;color:#fff;}
-    .hdr .ico{font-size:48px;margin-bottom:12px;text-shadow:0 4px 10px rgba(0,0,0,.1);}
-    .hdr h2{font-family:'Outfit',sans-serif;font-size:2rem;font-weight:900;letter-spacing:-0.02em;margin-bottom:4px;}
-    .hdr .sub{color:rgba(255,255,255,.9);font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;}
-    .hdr .ph{background:rgba(255,255,255,.2);display:inline-block;padding:4px 12px;border-radius:100px;font-size:13px;font-weight:700;margin-top:12px;}
-    .body{padding:28px 24px;}
-    .meta{display:grid;grid-template-columns:1fr 1fr;gap:12px;background:#fff7ed;border:1px solid #ffedd5;border-radius:16px;padding:16px;margin-bottom:24px;}
-    .meta label{font-size:9px;color:#9a3412;font-weight:800;letter-spacing:1px;text-transform:uppercase;}
-    .meta p{font-size:13px;font-weight:700;color:#111827;margin-top:4px;}
-    .sec{font-size:10px;font-weight:800;color:#9a3412;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;}
-    .row{display:flex;align-items:center;padding:12px 0;border-bottom:1px dashed #fed7aa;font-size:14px;}
-    .row:last-child{border-bottom:none;}
-    .row .nm{flex:1;font-weight:700;margin-left:12px;color:#374151;}
-    .row .qty{color:#9a3412;font-weight:600;background:#ffedd5;padding:2px 8px;border-radius:6px;margin:0 12px;font-size:12px;}
-    .row .amt{font-weight:800;color:#111827;}
-    .totals{background:#fafaf9;border:1px solid #e5e7eb;border-radius:16px;padding:16px;margin:24px 0;}
-    .trow{display:flex;justify-content:space-between;font-size:13px;color:#4b5563;margin-bottom:8px;font-weight:600;}
-    .trow.grand{font-size:20px;font-weight:900;color:#f97316;border-top:2px dashed #e5e7eb;padding-top:12px;margin-top:8px;font-family:'Outfit',sans-serif;}
-    .green{color:#16a34a;font-weight:800;}
-    .ftr{text-align:center;padding-top:20px;border-top:2px dashed #ffedd5;}
-    .ftr p{font-size:11px;font-weight:600;color:#6b7280;margin-bottom:4px;}
-    .thanks{font-family:'Outfit',sans-serif;font-size:1.1rem;font-weight:700;color:#ea580c;margin-top:12px;}
-    .actions{text-align:center;margin-top:24px;}
-    .actions button{padding:14px 32px;font-size:15px;font-weight:700;border:none;border-radius:12px;cursor:pointer;margin:0 8px;transition:all .2s;}
-    .btn-p{background:linear-gradient(135deg, #f97316, #eab308);color:#fff;box-shadow:0 4px 14px rgba(234,88,12,.3);}
-    .btn-c{background:#f3f4f6;color:#374151;}
-    @media print{.actions{display:none;}body{padding:0;background:#fff;}.wrap{box-shadow:none;border:none;}}
-  </style>
-</head>
-<body>
-<div class="wrap">
-  <div class="hdr">
-    <div class="ico">✿</div>
-    <h2>Shivkrupa</h2>
-    <div class="sub">Official E-Receipt</div>
-    <div class="ph">📞 9975636622</div>
-  </div>
-  <div class="body">
-    <div class="meta">
-      <div><label>Order ID</label><p>#${order.orderId}</p></div>
-      <div><label>Customer</label><p>${order.name}</p></div>
-      <div><label>Phone</label><p>${order.phone}</p></div>
-      <div><label>Date & Time</label><p>${order.timeStr}</p></div>
-    </div>
-    ${addressHtml}
-    <div class="sec">Items Ordered</div>
-    <div style="border: 1px solid #ffedd5; padding: 0 16px; border-radius: 16px;">
-      ${order.items.map((i: any) => `
-        <div class="row">
-          <span style="font-size:20px">${i.emoji || '📦'}</span>
-          <span class="nm">${i.name}</span>
-          <span class="qty">x${i.qty}</span>
-          <span class="amt">₹${i.price * i.qty}</span>
-        </div>
-      `).join('')}
-    </div>
-    <div class="totals">
-      <div class="trow"><span>Subtotal</span><span>₹${order.subtotal}</span></div>
-      <div class="trow"><span>Delivery</span><span class="${freeDelivery ? 'green' : ''}">${freeDelivery ? 'FREE 🎉' : '₹' + order.delivery}</span></div>
-      ${freeDelivery ? `<div class="trow"><span>Delivery Discount</span><span class="green">-₹${DELIVERY_CHARGE}</span></div>` : ''}
-      <div class="trow grand"><span>Grand Total</span><span>₹${order.total}</span></div>
-    </div>
-    <div class="ftr">
-  
-      <p>Jalna ❤️, Maharashtra</p>
-      <p>Made With ❤️ in India</p>
-      <div class="thanks">Thank you for shopping with us! 🙏</div>
-    </div>
-  </div>
-</div>
-<div class="actions">
-  <button class="btn-p" onclick="window.print()">🖨 Print Receipt</button>
-  <button class="btn-c" onclick="window.close()">✕ Close</button>
-</div>
-<script>window.onload=function(){window.focus();window.print();};</script>
-</body></html>`;
-
-    const blob = new Blob([html], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.target = '_blank'; a.rel = 'noopener'; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-  };
+  // Uses the same shared generator as My Orders > Download Invoice,
+  // so the receipt always matches (including saved Xerox rates).
+  const printBill = () => printReceipt(order as any);
 
   return (
     <div
@@ -183,26 +81,38 @@ export default function BillModal({ order, onClose }: Props) {
             </h4>
             <div className={`rounded-2xl border shadow-sm overflow-hidden ${isDark ? 'bg-[#1a1535] border-[#2d2450] shadow-black/10' : 'bg-white border-gray-100'}`}>
               <div className={`divide-y ${isDark ? 'divide-[#2d2450]' : 'divide-gray-50'}`}>
-                {order.items.map((item, i) => (
-                  <div key={i} className="flex items-center gap-3 px-4 py-3">
-                    <div className={`w-10 h-10 rounded-xl border flex items-center justify-center overflow-hidden shrink-0 ${isDark ? 'bg-indigo-500/10 border-indigo-500/20' : 'bg-orange-50 border-orange-100'}`}>
-                      {item.image?.startsWith('http') ? (
-                        <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="text-xl">{(item as any).emoji || '📦'}</span>
-                      )}
+                {order.items.map((item, i) => {
+                  const pf = (item as any).printFile;
+                  const pages = pf?.pages ?? 0;
+                  const rate = pf?.pricePerPage ?? (pages > 0 ? item.price / pages : 0);
+                  return (
+                    <div key={i} className="flex items-center gap-3 px-4 py-3">
+                      <div className={`w-10 h-10 rounded-xl border flex items-center justify-center overflow-hidden shrink-0 ${isDark ? 'bg-indigo-500/10 border-indigo-500/20' : 'bg-orange-50 border-orange-100'}`}>
+                        {item.image?.startsWith('http') ? (
+                          <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-xl">{(item as any).emoji || '📦'}</span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-bold truncate ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>{item.name}</p>
+                        <p className="text-[11px] font-bold text-gray-400 mt-0.5">
+                          Qty: {item.qty} × ₹{item.price}
+                        </p>
+                        {pf && (
+                          <p className="text-[10px] font-semibold text-gray-400 mt-0.5 leading-snug">
+                            {pf.pageSize} · {pf.colorMode === 'color' ? 'Colour' : 'B&W'} · {pf.orientation}
+                            <br />
+                            ₹{rate}/page × {pages} {pages === 1 ? 'page' : 'pages'} × {item.qty} {item.qty === 1 ? 'copy' : 'copies'}
+                          </p>
+                        )}
+                      </div>
+                      <span className={`font-black shrink-0 ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                        ₹{item.price * item.qty}
+                      </span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-bold truncate ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>{item.name}</p>
-                      <p className="text-[11px] font-bold text-gray-400 mt-0.5">
-                        Qty: {item.qty} × ₹{item.price}
-                      </p>
-                    </div>
-                    <span className={`font-black shrink-0 ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
-                      ₹{item.price * item.qty}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -222,7 +132,7 @@ export default function BillModal({ order, onClose }: Props) {
           {/* Location / Footer */}
           <div className="flex items-center justify-center gap-2 text-xs font-bold text-gray-400">
             <MapPin size={14} className={isDark ? 'text-indigo-400' : 'text-orange-400'} />
-            Pune, Maharashtra
+            Jalna, Maharashtra
           </div>
         </div>
 

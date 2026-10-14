@@ -6,6 +6,7 @@ import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/context/ThemeContext';
 import Navbar from '@/components/Navbar';
 import Toast from '@/components/shared/Toast';
+import { printReceipt } from '@/utils/printReceipt';
 import {
   Package,
   ChevronLeft,
@@ -17,6 +18,7 @@ import {
   Banknote,
   Truck,
   MapPin,
+  Download,
 } from 'lucide-react';
 import { useLang } from '@/context/LanguageContext';
 
@@ -250,31 +252,44 @@ export default function CustomerOrdersPage() {
                   {/* Card Body (Items) */}
                   <div className="p-5">
                     <div className="space-y-4">
-                      {(order.items || []).map((item, idx) => (
-                        <div key={idx} className="flex items-start gap-4">
-                          {/* Item Thumbnail */}
-                          <div className={`w-14 h-14 rounded-2xl border flex items-center justify-center overflow-hidden shrink-0 ${isDark ? 'bg-[#13102a] border-[#2d2450]' : 'bg-gray-50 border-gray-100'}`}>
-                            {item.image ? (
-                              <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                            ) : (
-                              <Package size={24} className="text-gray-300" />
-                            )}
-                          </div>
+                      {(order.items || []).map((item: any, idx: number) => {
+                        const pf = item.printFile;
+                        const pages = pf?.pages ?? 0;
+                        // Saved rate from when the order was placed (not today's admin rate)
+                        const rate = pf?.pricePerPage ?? (pages > 0 ? item.price / pages : 0);
+                        return (
+                          <div key={idx} className="flex items-start gap-4">
+                            {/* Item Thumbnail */}
+                            <div className={`w-14 h-14 rounded-2xl border flex items-center justify-center overflow-hidden shrink-0 ${isDark ? 'bg-[#13102a] border-[#2d2450]' : 'bg-gray-50 border-gray-100'}`}>
+                              {item.image ? (
+                                <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <Package size={24} className="text-gray-300" />
+                              )}
+                            </div>
 
-                          {/* Item Details */}
-                          <div className="flex-1 min-w-0 pt-1">
-                            <h5 className={`text-sm font-bold truncate ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{item.name}</h5>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${isDark ? 'text-gray-500 bg-[#13102a]' : 'text-gray-500 bg-gray-100'}`}>
-                                Qty: {item.qty}
-                              </span>
-                              <span className={`text-sm font-bold ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
-                                ₹{item.price * item.qty}
-                              </span>
+                            {/* Item Details */}
+                            <div className="flex-1 min-w-0 pt-1">
+                              <h5 className={`text-sm font-bold truncate ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{item.name}</h5>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${isDark ? 'text-gray-500 bg-[#13102a]' : 'text-gray-500 bg-gray-100'}`}>
+                                  Qty: {item.qty}
+                                </span>
+                                <span className={`text-sm font-bold ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                                  ₹{item.price * item.qty}
+                                </span>
+                              </div>
+                              {pf && (
+                                <p className={`text-[11px] font-medium mt-1 leading-snug ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                                  {pf.pageSize} · {pf.colorMode === 'color' ? 'Colour' : 'B&W'} · {pf.orientation}
+                                  <br />
+                                  ₹{rate}/page × {pages} {pages === 1 ? 'page' : 'pages'} × {item.qty} {item.qty === 1 ? 'copy' : 'copies'}
+                                </p>
+                              )}
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -288,17 +303,26 @@ export default function CustomerOrdersPage() {
                     </div>
                   )}
 
-                  {/* Cancel Order Button */}
-                  {(order.status === 'pending' || order.status === 'confirmed') && (
-                    <div className="px-5 pb-4">
+                  {/* Action buttons */}
+                  <div className="px-5 pb-4 space-y-2">
+                    {/* Download Invoice - available for every order, any time */}
+                    <button
+                      onClick={() => printReceipt(order as any)}
+                      className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold border-2 transition-all active:scale-95 ${isDark ? 'border-indigo-500/40 text-indigo-400 hover:bg-indigo-500/10' : 'border-orange-200 text-orange-600 hover:bg-orange-50'}`}
+                    >
+                      <Download size={16} /> Download Invoice
+                    </button>
+
+                    {/* Cancel Order Button */}
+                    {(order.status === 'pending' || order.status === 'confirmed') && (
                       <button
                         onClick={() => handleCancelOrder(order.orderId)}
                         className={`w-full py-2.5 rounded-xl text-sm font-bold border-2 transition-all active:scale-95 ${isDark ? 'border-red-500/40 text-red-400 hover:bg-red-500/10' : 'border-red-200 text-red-600 hover:bg-red-50'}`}
                       >
                         Cancel Order
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
 
                   {/* Card Footer */}
                   <div className={`px-5 py-4 flex items-center justify-between border-t ${isDark ? 'bg-[#13102a]/50 border-[#2d2450]' : 'bg-gray-50 border-gray-100'}`}>

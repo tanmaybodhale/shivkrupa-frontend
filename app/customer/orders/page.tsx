@@ -6,7 +6,7 @@ import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/context/ThemeContext';
 import Navbar from '@/components/Navbar';
 import Toast from '@/components/shared/Toast';
-import { printReceipt } from '@/utils/printReceipt';
+import { printReceipt } from '@/components/shopkeeper/utils/printReceipt';
 import {
   Package,
   ChevronLeft,

@@ -19,7 +19,8 @@ interface OrderItem {
   name: string;
   qty: number;
   price: number; // for print items: cost of ONE copy of the whole file at order time
-  printFile?: PrintFileInfo;
+  printDetails?: PrintFileInfo; // name used when saved on the server
+  printFile?: PrintFileInfo;    // name used on a freshly placed (local) order
 }
 
 export interface ReceiptOrder {
@@ -62,7 +63,7 @@ function formatAddress(addr: ReceiptOrder['deliveryAddress']): string {
 }
 
 function xeroxDetailHtml(item: OrderItem): string {
-  const pf = item.printFile;
+  const pf = item.printDetails ?? item.printFile;
   if (!pf) return '';
   const mode = pf.colorMode === 'color' ? 'Colour' : 'B&W';
   const orient = pf.orientation ? pf.orientation.charAt(0).toUpperCase() + pf.orientation.slice(1) : '';

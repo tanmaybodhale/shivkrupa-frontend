@@ -5,7 +5,18 @@ import Cropper, { Area } from 'react-easy-crop';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/context/ThemeContext';
 import { Upload, X, FileText, Crop as CropIcon, Plus, Minus, Lock, Check } from 'lucide-react';
-import { getXeroxOptions, pricePerPage, lineTotal, countPages, Pricing } from '@/lib/xeroxPricing';
+import {
+  getXeroxOptions,
+  pricePerPage,
+  lineTotal,
+  countPages,
+  effectivePricing,
+  totalPrintedPages,
+  isBulk,
+  hasBulkRates,
+  pagesToBulk,
+  XeroxService,
+} from '@/lib/xeroxPricing';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -24,6 +35,9 @@ const SIZE_DIMS: Record<string, [number, number]> = {
   A3: [11.7, 16.5],
   A2: [16.5, 23.4],
 };
+
+// Avoid floating-point noise like 4.500000000001 when rates have decimals
+const r2 = (n: number) => Math.round(n * 100) / 100;
 
 interface LocalFile {
   id: string;
@@ -55,8 +69,8 @@ export default function XeroxUploader() {
   const filesRef = useRef<LocalFile[]>([]);
   filesRef.current = files;
 
-  // Pricing comes from Admin > Services > Xerox
-  const [pricing, setPricing] = useState<Pricing | null>(null);
+  // Pricing (normal + bulk + threshold) comes from Admin > Services > Xerox
+  const [service, setService] = useState<XeroxService | null>(null);
   const [pricingLoaded, setPricingLoaded] = useState(false);
 
   useEffect(() => {
@@ -65,10 +79,18 @@ export default function XeroxUploader() {
         const res = await fetch(`${API_URL}/services`);
         const data = await res.json();
         const xerox = (data.services || []).find((s: any) => s.key === 'xerox' && s.active !== false);
-        setPricing(xerox && xerox.pricing && typeof xerox.pricing === 'object' ? xerox.pricing : null);
+        setService(
+          xerox && xerox.pricing && typeof xerox.pricing === 'object'
+            ? {
+                pricing: xerox.pricing,
+                bulkPricing: xerox.bulkPricing && typeof xerox.bulkPricing === 'object' ? xerox.bulkPricing : {},
+                bulkThreshold: Number(xerox.bulkThreshold) || 0,
+              }
+            : null
+        );
       } catch (e) {
         console.error('Failed to load Xerox pricing:', e);
-        setPricing(null);
+        setService(null);
       } finally {
         setPricingLoaded(true);
       }
@@ -82,7 +104,15 @@ export default function XeroxUploader() {
     };
   }, []);
 
-  const options = useMemo(() => getXeroxOptions(pricing), [pricing]);
+  // Bulk pricing: pages across ALL files and copies on screen decide the rate
+  const totalPages = useMemo(() => totalPrintedPages(files), [files]);
+  const pricing = useMemo(() => effectivePricing(service, totalPages), [service, totalPages]);
+  const bulkAvailable = hasBulkRates(service);
+  const bulkOn = isBulk(service, totalPages);
+  const pagesLeft = pagesToBulk(service, totalPages);
+  const bulkThreshold = Number(service?.bulkThreshold) || 0;
+
+  const options = useMemo(() => getXeroxOptions(service?.pricing), [service]);
   const serviceReady = options.sizes.length > 0;
 
   const typesFor = (size: string): ColorMode[] =>
@@ -226,9 +256,9 @@ export default function XeroxUploader() {
   };
 
   const fileTotal = (f: LocalFile) =>
-    lineTotal(pricing, { size: f.pageSize, type: MODE_LABEL[f.colorMode], pages: f.pages, copies: f.copies });
+    r2(lineTotal(pricing, { size: f.pageSize, type: MODE_LABEL[f.colorMode], pages: f.pages, copies: f.copies }));
 
-  const grandTotal = files.reduce((s, f) => s + fileTotal(f), 0);
+  const grandTotal = r2(files.reduce((s, f) => s + fileTotal(f), 0));
 
   const handleAddAllToCart = async () => {
     if (files.length === 0) {
@@ -294,15 +324,18 @@ export default function XeroxUploader() {
       // One cart line per uploaded file.
       //   price = cost of ONE copy of the whole file (price per page x pages)
       //   qty   = number of copies
+      // The per-page rate saved here is the one that applied at this moment
+      // (normal or bulk), so invoices never change when admin edits prices later.
       const newCartItems = uploadData.files.map((uploaded: any, idx: number) => {
         const local = files[idx];
         const perPage = pricePerPage(pricing, local.pageSize, MODE_LABEL[local.colorMode]);
+        const perCopy = r2(perPage * local.pages);
         return {
           ...base,
           _id: `${base._id}-print-${uploaded.public_id}`,
           name: `Print: ${local.file.name}`,
-          price: perPage * local.pages,
-          mrp: perPage * local.pages,
+          price: perCopy,
+          mrp: perCopy,
           unit: 'copy',
           inStock: true,
           image: local.isImage ? uploaded.url : '',
@@ -541,6 +574,30 @@ export default function XeroxUploader() {
             </div>
           </div>
 
+          {/* Bulk-rate banner: tells the customer which rate applies and how close the next tier is */}
+          {bulkAvailable && (
+            <div
+              className={`mt-5 rounded-xl border px-4 py-3 text-xs font-bold leading-snug ${
+                bulkOn
+                  ? isDark
+                    ? 'border-green-500/30 bg-green-500/10 text-green-300'
+                    : 'border-green-200 bg-green-50 text-green-700'
+                  : isDark
+                  ? 'border-indigo-500/30 bg-indigo-500/10 text-indigo-300'
+                  : 'border-orange-200 bg-orange-50 text-orange-700'
+              }`}
+            >
+              {bulkOn ? (
+                <>🎉 Bulk rate unlocked! {pageLabel(totalPages)} in this order (lower rate applies from {bulkThreshold} pages).</>
+              ) : (
+                <>
+                  💡 {pageLabel(totalPages)} so far. Add {pageLabel(pagesLeft)} more (pages or copies) to unlock the lower bulk rate
+                  at {bulkThreshold}+ pages.
+                </>
+              )}
+            </div>
+          )}
+
           {/* Settings for the selected file */}
           {selected && (
             <div
@@ -664,7 +721,9 @@ export default function XeroxUploader() {
                           </span>
                           <span className="min-w-0">
                             <span className="block text-sm font-black leading-tight">{MODE_DISPLAY[m]}</span>
-                            <span className={`block text-[11px] font-semibold ${active ? '' : muted}`}>₹{price}/page</span>
+                            <span className={`block text-[11px] font-semibold ${active ? '' : muted}`}>
+                              ₹{price}/page{bulkOn ? ' · bulk' : ''}
+                            </span>
                           </span>
                         </button>
                       );

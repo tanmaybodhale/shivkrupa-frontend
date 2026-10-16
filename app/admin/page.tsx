@@ -15,7 +15,7 @@ import { Product, Order } from '@/lib/types';
 import { Plus, Pencil, Trash2, Check, X, Package, ClipboardList, Infinity as InfinityIcon, Map, Users, Upload, Loader2, Images, Wrench, Image as ImageIcon } from 'lucide-react';
 import NotificationPanel from '@/components/shopkeeper/NotificationPanel';
 import BannerManager from '@/components/shopkeeper/BannerManager';
-import XeroxBulkPricingEditor from '@/components/shopkeeper/XeroxBulkPricingEditor';
+
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -174,12 +174,9 @@ export default function AdminPage() {
             <CatalogManager showToast={showToast} />
           )}
 
-         {activeTab === 'services' && (
-          <div className="space-y-6">
-          <ServicesManager showToast={showToast} />
-          <XeroxBulkPricingEditor showToast={showToast} />
-          </div>
-          )}
+        {activeTab === 'services' && (
+  <ServicesManager showToast={showToast} />
+)}
           {activeTab === 'banners' && (
             <BannerManager showToast={showToast} />
           )}

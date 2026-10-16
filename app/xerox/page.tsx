@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { ArrowLeft, Printer } from 'lucide-react';
 import XeroxUploader from '@/components/customer/XeroxUploader';
-import XeroxpriceInfo from '@/components/customer/XeroxpriceInfo';
+import XeroxPriceInfo from '@/components/customer/XeroxPriceInfo';
 import CartSidebar from '@/components/customer/CartSidebar';
 import MiniCartBar from '@/components/customer/MiniCartBar';
 import Toast from '@/components/shared/Toast';

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowLeft, Printer } from 'lucide-react';
 import XeroxUploader from '@/components/customer/XeroxUploader';
+import XeroxPriceInfo from '@/components/customer/XeroxPriceInfo';
 import CartSidebar from '@/components/customer/CartSidebar';
 import MiniCartBar from '@/components/customer/MiniCartBar';
 import Toast from '@/components/shared/Toast';
@@ -37,6 +38,9 @@ export default function XeroxPage() {
             </p>
           </div>
         </div>
+
+        {/* Live price list + bulk-rate line (reads the admin's Xerox prices) */}
+        <XeroxPriceInfo />
 
         {/* Uploader */}
         <XeroxUploader />

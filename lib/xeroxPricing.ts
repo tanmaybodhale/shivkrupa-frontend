@@ -4,6 +4,13 @@ import { PDFDocument } from 'pdf-lib';
 
 export type Pricing = Record<string, number>;
 
+/** Shape of the Xerox service document returned by GET /services/xerox */
+export interface XeroxService {
+  pricing?: Pricing | null;
+  bulkPricing?: Pricing | null;     // per-page rates once the threshold is reached
+  bulkThreshold?: number | null;    // total printed pages at which bulkPricing applies (0 = off)
+}
+
 export interface XeroxOptions {
   sizes: string[];                         // e.g. ["A4", "A3"]
   typesBySize: Record<string, string[]>;   // e.g. { A4: ["B&W","Color"], A3: ["B&W"] }
@@ -64,4 +71,52 @@ export async function countPages(file: File): Promise<number | null> {
   }
 
   return null; // .doc / .docx
+}
+
+/* ───────────── Bulk (threshold) pricing ───────────── */
+
+export const DEFAULT_BULK_THRESHOLD = 20;
+
+/**
+ * Total pages that will actually be printed across every file in the order
+ * (pages in each file x copies of it). This is the number compared with the
+ * admin's threshold.
+ */
+export function totalPrintedPages(items: { pages: number; copies: number }[]): number {
+  return items.reduce((sum, i) => sum + Math.max(1, i.pages) * Math.max(1, i.copies), 0);
+}
+
+/** True when the admin has set a threshold and at least one bulk rate. */
+export function hasBulkRates(service?: XeroxService | null): boolean {
+  const t = Number(service?.bulkThreshold);
+  if (!(t > 0)) return false;
+  return Object.values(service?.bulkPricing ?? {}).some(p => Number(p) > 0);
+}
+
+/** True once totalPages reaches the threshold (and bulk rates exist). */
+export function isBulk(service: XeroxService | null | undefined, totalPages: number): boolean {
+  return hasBulkRates(service) && totalPages >= Number(service?.bulkThreshold);
+}
+
+/**
+ * The price list to use for this order. Below the threshold it is the normal
+ * pricing. At or above it, any label with a bulk price above 0 is replaced by
+ * that bulk price; every other label keeps its normal price.
+ *
+ * Pass the result into getXeroxOptions / pricePerPage / lineTotal exactly like
+ * the plain pricing map.
+ */
+export function effectivePricing(service: XeroxService | null | undefined, totalPages: number): Pricing {
+  const base: Pricing = { ...(service?.pricing ?? {}) };
+  if (!isBulk(service, totalPages)) return base;
+  for (const [label, price] of Object.entries(service?.bulkPricing ?? {})) {
+    if (Number(price) > 0 && Number(base[label]) > 0) base[label] = Number(price);
+  }
+  return base;
+}
+
+/** Pages still needed to unlock the bulk rate (0 if already unlocked or no bulk rates). */
+export function pagesToBulk(service: XeroxService | null | undefined, totalPages: number): number {
+  if (!hasBulkRates(service)) return 0;
+  return Math.max(0, Number(service?.bulkThreshold) - totalPages);
 }

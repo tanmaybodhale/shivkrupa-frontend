@@ -12,11 +12,13 @@ interface Service {
   name: string;
   icon?: string;
   pricing: Record<string, number>;
+  bulkPricing: Record<string, number>; // per-page rate once the threshold is reached
+  bulkThreshold: number;               // total pages at which bulkPricing applies (0 = off)
   active: boolean;
 }
 
-// Pricing is still stored as a flat map: { "A4 - B&W": 2, "A4 - Color": 10, ... }
-// so the customer-side Xerox page keeps working unchanged.
+// Pricing is still stored as flat maps: { "A4 - B&W": 2, "A4 - Color": 10, ... }
+// bulkPricing uses the same keys, so the customer-side Xerox page keeps working unchanged.
 const PAPER_SIZES = ['A4', 'A3', 'A5', 'Letter', 'Legal'];
 const PRINT_TYPES = ['B&W', 'Color'];
 const rateKey = (size: string, type: string) => `${size} - ${type}`;
@@ -27,12 +29,15 @@ const DEFAULT_XEROX_PRICING: Record<string, number> = {
   'A3 - B&W': 5,
   'A3 - Color': 15,
 };
+const DEFAULT_BULK_THRESHOLD = 20;
 
-// FIX: backend can return a service without `pricing` (null/undefined).
-// Object.entries(undefined) was what crashed the admin page.
+// Backend can return a service without `pricing` / `bulkPricing` (null/undefined).
+// Object.entries(undefined) was what crashed the admin page before.
 const normalize = (s: any): Service => ({
   ...s,
   pricing: s && s.pricing && typeof s.pricing === 'object' ? s.pricing : {},
+  bulkPricing: s && s.bulkPricing && typeof s.bulkPricing === 'object' ? s.bulkPricing : {},
+  bulkThreshold: Number.isFinite(Number(s?.bulkThreshold)) ? Number(s.bulkThreshold) : 0,
 });
 
 export default function ServicesManager({ showToast }: { showToast: (msg: string) => void }) {
@@ -41,6 +46,8 @@ export default function ServicesManager({ showToast }: { showToast: (msg: string
   const [loading, setLoading] = useState(true);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editPricing, setEditPricing] = useState<Record<string, number>>({});
+  const [editBulk, setEditBulk] = useState<Record<string, string>>({});
+  const [editThreshold, setEditThreshold] = useState(String(DEFAULT_BULK_THRESHOLD));
   const [editName, setEditName] = useState('');
   const [editIcon, setEditIcon] = useState('');
   const [newRateLabel, setNewRateLabel] = useState('');
@@ -80,6 +87,8 @@ export default function ServicesManager({ showToast }: { showToast: (msg: string
           name: 'Xerox / Printing',
           icon: '🖨️',
           pricing: DEFAULT_XEROX_PRICING,
+          bulkPricing: {},
+          bulkThreshold: DEFAULT_BULK_THRESHOLD,
           active: true,
         }),
       });
@@ -100,6 +109,13 @@ export default function ServicesManager({ showToast }: { showToast: (msg: string
   const startEdit = (service: Service) => {
     setEditingKey(service.key);
     setEditPricing({ ...(service.pricing || {}) });
+    // Bulk prices are edited as strings so an empty box means "no bulk price"
+    const bulk: Record<string, string> = {};
+    Object.entries(service.bulkPricing || {}).forEach(([label, p]) => {
+      if (Number(p) > 0) bulk[label] = String(p);
+    });
+    setEditBulk(bulk);
+    setEditThreshold(String(service.bulkThreshold ?? 0));
     setEditName(service.name);
     setEditIcon(service.icon || '🛠️');
     setNewRateLabel('');
@@ -109,6 +125,7 @@ export default function ServicesManager({ showToast }: { showToast: (msg: string
   const cancelEdit = () => {
     setEditingKey(null);
     setEditPricing({});
+    setEditBulk({});
   };
 
   // ---------- Xerox price grid helpers ----------
@@ -132,6 +149,11 @@ export default function ServicesManager({ showToast }: { showToast: (msg: string
       PRINT_TYPES.forEach(t => delete next[rateKey(size, t)]);
       return next;
     });
+    setEditBulk(prev => {
+      const next = { ...prev };
+      PRINT_TYPES.forEach(t => delete next[rateKey(size, t)]);
+      return next;
+    });
   };
 
   const setCellPrice = (size: string, type: string, value: string) => {
@@ -145,6 +167,10 @@ export default function ServicesManager({ showToast }: { showToast: (msg: string
       }
       return next;
     });
+  };
+
+  const setBulkCell = (size: string, type: string, value: string) => {
+    setEditBulk(prev => ({ ...prev, [rateKey(size, type)]: value }));
   };
 
   // ---------- Generic rate list helpers (non-Xerox services) ----------
@@ -173,16 +199,43 @@ export default function ServicesManager({ showToast }: { showToast: (msg: string
 
   const saveEdit = async () => {
     if (!editingKey) return;
+    const isXerox = editingKey === 'xerox';
+
     // Only keep rates with a price above 0, so options left blank are never offered
     const cleanedPricing = Object.fromEntries(
       Object.entries(editPricing).filter(([, p]) => Number(p) > 0)
     );
+
+    const body: Record<string, unknown> = { name: editName, icon: editIcon, pricing: cleanedPricing };
+
+    if (isXerox) {
+      const t = Math.floor(Number(editThreshold));
+      if (editThreshold.trim() === '' || !Number.isFinite(t) || t < 0) {
+        showToast('❌ Enter a valid page threshold (0 or more)');
+        return;
+      }
+      // Keep only bulk prices > 0 for rates that still exist in the normal list
+      const cleanedBulk: Record<string, number> = {};
+      for (const [label, value] of Object.entries(editBulk)) {
+        if (!(label in cleanedPricing)) continue;
+        if (value.trim() === '') continue;
+        const n = Number(value);
+        if (!Number.isFinite(n) || n < 0) {
+          showToast(`❌ Invalid bulk price for ${label}`);
+          return;
+        }
+        if (n > 0) cleanedBulk[label] = n;
+      }
+      body.bulkThreshold = t;
+      body.bulkPricing = cleanedBulk;
+    }
+
     setSaving(true);
     try {
       const res = await fetch(`${API_URL}/services/${editingKey}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editName, icon: editIcon, pricing: cleanedPricing }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (data.success) {
@@ -264,6 +317,7 @@ export default function ServicesManager({ showToast }: { showToast: (msg: string
 
   // ---------- shared class helpers ----------
   const inputCls = `px-3 py-2 rounded-xl border text-sm font-bold outline-none ${isDark ? 'bg-[#13102a] border-[#2d2450] text-gray-200' : 'bg-white border-orange-200 text-gray-800'}`;
+  const cellInputCls = `w-20 px-2 py-1.5 rounded-lg border text-sm font-bold outline-none ${isDark ? 'bg-[#13102a] border-[#2d2450] text-gray-200' : 'bg-white border-orange-200 text-gray-900'}`;
   const mutedText = isDark ? 'text-gray-500' : 'text-gray-400';
 
   if (loading) {
@@ -282,7 +336,7 @@ export default function ServicesManager({ showToast }: { showToast: (msg: string
         <div>
           <h3 className={`font-black text-xl ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>Services</h3>
           <p className="text-sm font-medium text-gray-500 mt-0.5">
-            Set the price per page for each paper size and print type.
+            Set the price per page for each paper size and print type, plus a lower bulk price for bigger orders.
           </p>
         </div>
         <button
@@ -333,8 +387,11 @@ export default function ServicesManager({ showToast }: { showToast: (msg: string
       <div className="space-y-4">
         {services.map(service => {
           const pricing = service.pricing || {};
+          const bulkPricing = service.bulkPricing || {};
           const isXerox = service.key === 'xerox';
           const isEditing = editingKey === service.key;
+          const bulkEntries = Object.entries(bulkPricing).filter(([, p]) => Number(p) > 0);
+          const thresholdNum = Math.floor(Number(editThreshold)) || 0;
 
           return (
             <div key={service.key} className={`rounded-2xl border overflow-hidden ${isDark ? 'bg-[#1a1535] border-[#2d2450]' : 'bg-white border-orange-100'}`}>
@@ -382,70 +439,164 @@ export default function ServicesManager({ showToast }: { showToast: (msg: string
 
                     {isXerox ? (
                       /* ---------- Xerox: paper size x print type grid ---------- */
-                      <div className="space-y-3">
-                        <p className={`text-xs font-bold ${mutedText}`}>Price per page (₹)</p>
+                      <div className="space-y-5">
+                        {/* Normal prices */}
+                        <div className="space-y-3">
+                          <p className={`text-xs font-bold ${mutedText}`}>
+                            Normal price per page (₹) — used when the order has fewer than {thresholdNum} pages
+                          </p>
 
-                        {sizesInUse(editPricing).length === 0 ? (
-                          <p className={`text-xs ${mutedText}`}>No paper sizes yet. Pick one below to start.</p>
-                        ) : (
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                              <thead>
-                                <tr className={mutedText}>
-                                  <th className="text-left font-bold text-xs pb-2 pr-3">Paper size</th>
-                                  {PRINT_TYPES.map(t => (
-                                    <th key={t} className="text-left font-bold text-xs pb-2 pr-3">{t}</th>
-                                  ))}
-                                  <th />
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {sizesInUse(editPricing).map(size => (
-                                  <tr key={size}>
-                                    <td className={`py-1 pr-3 font-black ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{size}</td>
+                          {sizesInUse(editPricing).length === 0 ? (
+                            <p className={`text-xs ${mutedText}`}>No paper sizes yet. Pick one below to start.</p>
+                          ) : (
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className={mutedText}>
+                                    <th className="text-left font-bold text-xs pb-2 pr-3">Paper size</th>
                                     {PRINT_TYPES.map(t => (
-                                      <td key={t} className="py-1 pr-3">
-                                        <div className="flex items-center gap-1">
-                                          <span className={`text-xs font-bold ${mutedText}`}>₹</span>
-                                          <input
-                                            type="number"
-                                            min={0}
-                                            value={editPricing[rateKey(size, t)] ?? ''}
-                                            onChange={e => setCellPrice(size, t, e.target.value)}
-                                            placeholder="—"
-                                            className={`w-20 px-2 py-1.5 rounded-lg border text-sm font-bold outline-none ${isDark ? 'bg-[#13102a] border-[#2d2450] text-gray-200' : 'bg-white border-orange-200 text-gray-900'}`}
-                                          />
-                                        </div>
-                                      </td>
+                                      <th key={t} className="text-left font-bold text-xs pb-2 pr-3">{t}</th>
                                     ))}
-                                    <td className="py-1 text-right">
-                                      <button onClick={() => removePaperSize(size)} title={`Remove ${size}`} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg">
-                                        <X size={14} />
-                                      </button>
-                                    </td>
+                                    <th />
                                   </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
+                                </thead>
+                                <tbody>
+                                  {sizesInUse(editPricing).map(size => (
+                                    <tr key={size}>
+                                      <td className={`py-1 pr-3 font-black ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{size}</td>
+                                      {PRINT_TYPES.map(t => (
+                                        <td key={t} className="py-1 pr-3">
+                                          <div className="flex items-center gap-1">
+                                            <span className={`text-xs font-bold ${mutedText}`}>₹</span>
+                                            <input
+                                              type="number"
+                                              min={0}
+                                              step="0.01"
+                                              value={editPricing[rateKey(size, t)] ?? ''}
+                                              onChange={e => setCellPrice(size, t, e.target.value)}
+                                              placeholder="—"
+                                              className={cellInputCls}
+                                            />
+                                          </div>
+                                        </td>
+                                      ))}
+                                      <td className="py-1 text-right">
+                                        <button onClick={() => removePaperSize(size)} title={`Remove ${size}`} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg">
+                                          <X size={14} />
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
 
-                        {/* Add a paper size */}
-                        {PAPER_SIZES.filter(s => !sizesInUse(editPricing).includes(s)).length > 0 && (
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className={`text-xs font-bold ${mutedText}`}>Add paper size:</span>
-                            {PAPER_SIZES.filter(s => !sizesInUse(editPricing).includes(s)).map(size => (
-                              <button
-                                key={size}
-                                onClick={() => addPaperSize(size)}
-                                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border border-dashed ${isDark ? 'border-[#2d2450] text-indigo-400 hover:bg-indigo-500/10' : 'border-orange-300 text-orange-600 hover:bg-orange-50'}`}
-                              >
-                                <Plus size={12} strokeWidth={3} /> {size}
-                              </button>
-                            ))}
+                          {/* Add a paper size */}
+                          {PAPER_SIZES.filter(s => !sizesInUse(editPricing).includes(s)).length > 0 && (
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className={`text-xs font-bold ${mutedText}`}>Add paper size:</span>
+                              {PAPER_SIZES.filter(s => !sizesInUse(editPricing).includes(s)).map(size => (
+                                <button
+                                  key={size}
+                                  onClick={() => addPaperSize(size)}
+                                  className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold border border-dashed ${isDark ? 'border-[#2d2450] text-indigo-400 hover:bg-indigo-500/10' : 'border-orange-300 text-orange-600 hover:bg-orange-50'}`}
+                                >
+                                  <Plus size={12} strokeWidth={3} /> {size}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          <p className={`text-[11px] ${mutedText}`}>Price is per page. Leave a cell empty (or 0) and customers won&apos;t see that option.</p>
+                        </div>
+
+                        {/* Bulk threshold + bulk prices */}
+                        <div className={`rounded-xl border p-3 sm:p-4 space-y-3 ${isDark ? 'border-[#2d2450] bg-[#13102a]/60' : 'border-orange-100 bg-orange-50/40'}`}>
+                          <div>
+                            <p className={`text-sm font-black ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>Bulk pricing</p>
+                            <p className={`text-[11px] ${mutedText}`}>
+                              Below the threshold customers pay the normal price. At or above it, they pay the bulk price.
+                              Pages are counted across all files and copies in one order.
+                            </p>
                           </div>
-                        )}
-                        <p className={`text-[11px] ${mutedText}`}>Price is per page. Leave a cell empty (or 0) and customers won't see that option.</p>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`text-xs font-bold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Bulk price applies from</span>
+                            <input
+                              type="number"
+                              min={0}
+                              step={1}
+                              value={editThreshold}
+                              onChange={e => setEditThreshold(e.target.value)}
+                              className={`w-20 text-center ${cellInputCls}`}
+                            />
+                            <span className={`text-xs font-bold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>pages</span>
+                            <span className={`text-[11px] ${mutedText}`}>(0 = bulk pricing off)</span>
+                          </div>
+
+                          {thresholdNum > 0 && (
+                            <p className={`text-[11px] font-semibold ${mutedText}`}>
+                              Example: 1–{Math.max(0, thresholdNum - 1)} pages → normal price. {thresholdNum}+ pages → bulk price.
+                            </p>
+                          )}
+
+                          {Object.values(editPricing).some(p => Number(p) > 0) ? (
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className={mutedText}>
+                                    <th className="text-left font-bold text-xs pb-2 pr-3">Paper size</th>
+                                    {PRINT_TYPES.map(t => (
+                                      <th key={t} className="text-left font-bold text-xs pb-2 pr-3">{t} (bulk)</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {sizesInUse(editPricing).map(size => (
+                                    <tr key={size}>
+                                      <td className={`py-1 pr-3 font-black ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{size}</td>
+                                      {PRINT_TYPES.map(t => {
+                                        const label = rateKey(size, t);
+                                        const normal = Number(editPricing[label]) || 0;
+                                        const value = editBulk[label] ?? '';
+                                        const notLower = value.trim() !== '' && normal > 0 && Number(value) >= normal;
+                                        return (
+                                          <td key={t} className="py-1 pr-3 align-top">
+                                            {normal > 0 ? (
+                                              <>
+                                                <div className="flex items-center gap-1">
+                                                  <span className={`text-xs font-bold ${mutedText}`}>₹</span>
+                                                  <input
+                                                    type="number"
+                                                    min={0}
+                                                    step="0.01"
+                                                    inputMode="decimal"
+                                                    value={value}
+                                                    onChange={e => setBulkCell(size, t, e.target.value)}
+                                                    placeholder="—"
+                                                    className={cellInputCls}
+                                                  />
+                                                </div>
+                                                <span className={`block text-[10px] font-semibold mt-0.5 ${notLower ? 'text-amber-600' : mutedText}`}>
+                                                  {notLower ? 'Not lower than normal' : `Normal ₹${normal}`}
+                                                </span>
+                                              </>
+                                            ) : (
+                                              <span className={mutedText}>—</span>
+                                            )}
+                                          </td>
+                                        );
+                                      })}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <p className={`text-xs ${mutedText}`}>Set the normal prices above first, then add bulk prices here.</p>
+                          )}
+                          <p className={`text-[11px] ${mutedText}`}>Leave a bulk price empty to keep the normal price for that row.</p>
+                        </div>
                       </div>
                     ) : (
                       /* ---------- Other services: simple label + price list ---------- */
@@ -485,15 +636,32 @@ export default function ServicesManager({ showToast }: { showToast: (msg: string
                     </div>
                   </div>
                 ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {Object.keys(pricing).length === 0 ? (
-                      <p className={`text-xs ${mutedText}`}>No rates set — click edit to add some.</p>
-                    ) : (
-                      Object.entries(pricing).map(([label, price]) => (
-                        <span key={label} className={`text-xs font-bold px-3 py-1.5 rounded-lg ${isDark ? 'bg-[#13102a] text-gray-300' : 'bg-orange-50 text-gray-700'}`}>
-                          {label}: ₹{price}
-                        </span>
-                      ))
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                      {Object.keys(pricing).length === 0 ? (
+                        <p className={`text-xs ${mutedText}`}>No rates set — click edit to add some.</p>
+                      ) : (
+                        Object.entries(pricing).map(([label, price]) => (
+                          <span key={label} className={`text-xs font-bold px-3 py-1.5 rounded-lg ${isDark ? 'bg-[#13102a] text-gray-300' : 'bg-orange-50 text-gray-700'}`}>
+                            {label}: ₹{price}
+                          </span>
+                        ))
+                      )}
+                    </div>
+
+                    {isXerox && service.bulkThreshold > 0 && bulkEntries.length > 0 && (
+                      <div>
+                        <p className={`text-[11px] font-bold mb-1.5 ${isDark ? 'text-green-400' : 'text-green-700'}`}>
+                          Bulk price from {service.bulkThreshold} pages:
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {bulkEntries.map(([label, price]) => (
+                            <span key={label} className={`text-xs font-bold px-3 py-1.5 rounded-lg ${isDark ? 'bg-green-500/10 text-green-300' : 'bg-green-50 text-green-700'}`}>
+                              {label}: ₹{price}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}
@@ -507,7 +675,7 @@ export default function ServicesManager({ showToast }: { showToast: (msg: string
         <div className={`p-12 text-center rounded-2xl border ${isDark ? 'bg-[#1a1535] border-[#2d2450]' : 'bg-white border-orange-100'}`}>
           <Wrench size={32} className="mx-auto text-orange-300 mb-3" />
           <h4 className={`text-lg font-bold ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>No services yet</h4>
-          <p className="text-gray-500 text-sm mt-1">Use "Set up Xerox pricing" above, or "Add Service" for something new.</p>
+          <p className="text-gray-500 text-sm mt-1">Use &quot;Set up Xerox pricing&quot; above, or &quot;Add Service&quot; for something new.</p>
         </div>
       )}
     </div>

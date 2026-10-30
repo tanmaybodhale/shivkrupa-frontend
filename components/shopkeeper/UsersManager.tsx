@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useTheme } from '@/context/ThemeContext';
 import { User } from '@/lib/types';
+import { authFetch } from '@/lib/api';
 import { Trash2 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
@@ -15,7 +16,7 @@ export default function UsersManager({ showToast }: { showToast: (msg: string) =
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch(`${API_URL}/auth/users`);
+      const res = await authFetch(`${API_URL}/auth/users`);
       const data = await res.json();
       if (data.success) setUsers(data.users || []);
     } catch (error) {
@@ -34,7 +35,7 @@ export default function UsersManager({ showToast }: { showToast: (msg: string) =
     if (!confirm('Remove this user from platform? This will also remove their orders.')) return;
     setDeletingUid(uid);
     try {
-      const res = await fetch(`${API_URL}/auth/users/${uid}`, { method: 'DELETE' });
+      const res = await authFetch(`${API_URL}/auth/users/${uid}`, { method: 'DELETE' });
       const data = await res.json();
       if (!data.success) {
         showToast(`❌ ${data.message || 'Failed to delete user'}`);

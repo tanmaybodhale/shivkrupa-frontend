@@ -8,6 +8,7 @@ import { User, CartItem, Order, Product, Address } from '@/lib/types';
 import {
   FREE_DELIVERY_THRESHOLD, DELIVERY_CHARGE,
 } from '@/lib/data';
+import { authFetch, getToken, setToken, clearToken, UNAUTHORIZED_EVENT } from '@/lib/api';
 
 // ─── helpers ────────────────────────────────────────────────
 const ls = {
@@ -37,6 +38,11 @@ async function parseJsonResponse(res: Response, context: string): Promise<{ succ
   return res.json();
 }
 
+const friendlyError = (error: unknown): string =>
+  error instanceof Error && error.message.startsWith('Unexpected response')
+    ? error.message
+    : 'Server error. Please try again.';
+
 // ─── types ──────────────────────────────────────────────────
 interface AppState {
   currentUser: User | null;
@@ -46,7 +52,8 @@ interface AppState {
   cartOpen: boolean;
   wishlist: string[];
 
-  signup: (name: string, phone: string, email: string, pass: string, address?: User['address']) => Promise<string | null>;
+  loginWithToken: (idToken: string) => Promise<string | null>;
+  signupWithToken: (idToken: string, name: string, email: string) => Promise<string | null>;
   login: (id: string, pass: string, role: 'customer' | 'shopkeeper') => Promise<string | null>;
   logout: () => void;
   updateProfile: (name: string, address?: User['address']) => Promise<string | null>;
@@ -92,14 +99,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setOrders(ls.get<Order[]>('sk_orders', []));
     setCart(ls.get<CartItem[]>('sk_cart', []));
     setCartHydrated(true);
-    // Restore session
+
+    // Restore session. A saved user without a token is an old password-era
+    // session, so clear it and make them log in again with OTP.
     const u = ls.get<User | null>('sk_session', null);
-    if (u) {
+    if (u && getToken()) {
       setCurrentUser(u);
-      // Load wishlist from saved session
       setWishlist(u.wishlist || ls.get<string[]>('sk_wishlist', []));
     } else {
-      // Guest wishlist from localStorage
+      if (u) ls.set('sk_session', null);
       setWishlist(ls.get<string[]>('sk_wishlist', []));
     }
   }, []);
@@ -119,37 +127,101 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTimeout(() => setToast(t => ({ ...t, visible: false })), 2800);
   }, []);
 
+  // If the backend rejects our token (expired / invalid), end the session
+  useEffect(() => {
+    const onExpired = () => {
+      clearToken();
+      ls.set('sk_session', null);
+      setCurrentUser(null);
+      showToast('⚠️ Session expired. Please login again.');
+    };
+    window.addEventListener(UNAUTHORIZED_EVENT, onExpired);
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, onExpired);
+  }, [showToast]);
+
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
   // ── Auth ──────────────────────────────────────────────────
-  const signup = async (name: string, phone: string, email: string, pass: string, address?: User['address']): Promise<string | null> => {
-    if (!name || !phone || !pass) return 'Please fill all required fields';
-    if (!/^\d{10}$/.test(phone)) return 'Enter a valid 10-digit phone number';
+  const startSession = (user: User, token: string) => {
+    setToken(token);
+    setCurrentUser(user);
+    ls.set('sk_session', user);
+    const list = user.wishlist || [];
+    setWishlist(list);
+    ls.set('sk_wishlist', list);
+  };
 
+  // Customer login: `idToken` comes from Firebase after the OTP is confirmed
+  const loginWithToken = async (idToken: string): Promise<string | null> => {
     try {
-      const res = await fetch(`${API_URL}/auth/signup`, {
+      const res = await fetch(`${API_URL}/auth/login-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, phone, email, password: pass, role: 'customer', address }),
+        body: JSON.stringify({ idToken }),
       });
-      const data = await parseJsonResponse(res, 'signup');
-      if (!data.success) return data.message || 'Signup failed. Please try again.';
+      const data = await parseJsonResponse(res, 'login-otp');
+      if (!data.success) return data.message || 'Login failed. Please try again.';
+      startSession(data.user as User, data.token as string);
       return null;
     } catch (error) {
-      console.error('[signup] request failed:', error);
-      return error instanceof Error && error.message.startsWith('Unexpected response')
-        ? error.message
-        : 'Server error. Please try again.';
+      console.error('[login-otp] request failed:', error);
+      return friendlyError(error);
     }
+  };
+
+  // Customer signup: creates the account and logs in immediately
+  const signupWithToken = async (idToken: string, name: string, email: string): Promise<string | null> => {
+    try {
+      const res = await fetch(`${API_URL}/auth/signup-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken, name, email }),
+      });
+      const data = await parseJsonResponse(res, 'signup-otp');
+      if (!data.success) return data.message || 'Signup failed. Please try again.';
+      startSession(data.user as User, data.token as string);
+      return null;
+    } catch (error) {
+      console.error('[signup-otp] request failed:', error);
+      return friendlyError(error);
+    }
+  };
+
+  // Shopkeeper (password) login
+  const login = async (id: string, pass: string, role: 'customer' | 'shopkeeper'): Promise<string | null> => {
+    try {
+      const res = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, password: pass, role }),
+      });
+      const data = await parseJsonResponse(res, 'login');
+      if (!data.success) return data.message || 'Login failed. Please try again.';
+      startSession(data.user as User, data.token as string);
+      return null;
+    } catch (error) {
+      console.error('[login] request failed:', error);
+      return friendlyError(error);
+    }
+  };
+
+  const logout = () => {
+    setCurrentUser(null);
+    setCart([]);
+    setWishlist([]);
+    clearToken();
+    ls.set('sk_session', null);
+    ls.set('sk_wishlist', []);
+    ls.set('sk_cart', []);
   };
 
   const updateProfile = async (name: string, address?: User['address']): Promise<string | null> => {
     if (!currentUser) return 'Please login first';
     try {
-      const res = await fetch(`${API_URL}/auth/profile`, {
+      const res = await authFetch(`${API_URL}/auth/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid: currentUser.uid, name, address }),
+        body: JSON.stringify({ name, address }),
       });
       const data = await res.json();
       if (data.success) {
@@ -172,10 +244,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const saveAddress = async (address: Address, index?: number): Promise<string | null> => {
     if (!currentUser) return 'Please login first';
     try {
-      const res = await fetch(`${API_URL}/auth/addresses`, {
+      const res = await authFetch(`${API_URL}/auth/addresses`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid: currentUser.uid, address, index }),
+        body: JSON.stringify({ address, index }),
       });
       const data = await res.json();
       if (data.success) {
@@ -192,10 +264,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const deleteAddress = async (index: number): Promise<string | null> => {
     if (!currentUser) return 'Please login first';
     try {
-      const res = await fetch(`${API_URL}/auth/addresses`, {
+      const res = await authFetch(`${API_URL}/auth/addresses`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid: currentUser.uid, index }),
+        body: JSON.stringify({ index }),
       });
       const data = await res.json();
       if (data.success) {
@@ -207,35 +279,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch {
       return 'Server error. Please try again.';
     }
-  };
-
-  const login = async (id: string, pass: string, role: 'customer' | 'shopkeeper'): Promise<string | null> => {
-    try {
-      const res = await fetch(`${API_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, password: pass, role }),
-      });
-      const data = await parseJsonResponse(res, 'login');
-      if (!data.success) return data.message || 'Login failed. Please try again.';
-      setCurrentUser(data.user as User);
-      ls.set('sk_session', data.user);
-      return null;
-    } catch (error) {
-      console.error('[login] request failed:', error);
-      return error instanceof Error && error.message.startsWith('Unexpected response')
-        ? error.message
-        : 'Server error. Please try again.';
-    }
-  };
-
-  const logout = () => {
-    setCurrentUser(null);
-    setCart([]);
-    setWishlist([]);
-    ls.set('sk_session', null);
-    ls.set('sk_wishlist', []);
-    ls.set('sk_cart', []);
   };
 
   // ── Cart ─────────────────────────────────────────────────
@@ -294,10 +337,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Sync to backend if logged in
     if (currentUser && currentUser.role === 'customer') {
       try {
-        await fetch(`${API_URL}/auth/wishlist/toggle`, {
+        await authFetch(`${API_URL}/auth/wishlist/toggle`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ uid: currentUser.uid, productId }),
+          body: JSON.stringify({ productId }),
         });
       } catch {
         // silently fail — local state already updated
@@ -334,7 +377,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
 
     try {
-      const res = await fetch(`${API_URL}/orders`, {
+      const res = await authFetch(`${API_URL}/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -371,7 +414,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const fetchOrders = useCallback(async () => {
     if (!currentUser) return;
     try {
-      const res = await fetch(`${API_URL}/orders/${currentUser.uid}`);
+      const res = await authFetch(`${API_URL}/orders/${currentUser.uid}`);
       const data = await res.json();
       if (data.success) {
         setOrders(data.orders);
@@ -384,7 +427,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateOrderStatus = async (orderId: string, status: Order['status']) => {
     try {
-      const res = await fetch(`${API_URL}/orders/${orderId}/status`, {
+      const res = await authFetch(`${API_URL}/orders/${orderId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
@@ -405,7 +448,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       currentUser, cart, orders, toast, cartOpen, wishlist,
-      signup, login, logout, updateProfile, updateAddress, saveAddress, deleteAddress,
+      loginWithToken, signupWithToken, login, logout, updateProfile, updateAddress, saveAddress, deleteAddress,
       addToCart, addPrintItemsToCart, changeQty, clearCart, cartSubtotal, deliveryCharge, cartTotal, setCartOpen,
       toggleWishlist, isInWishlist,
       placeOrder, updateOrderStatus, refreshOrders, fetchOrders, setOrders, setCurrentUser,

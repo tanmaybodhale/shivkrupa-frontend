@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Navigation, MapPin, RefreshCw, Loader2 } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
+import { authFetch } from '@/lib/api';
 
 interface UserLocation {
   uid: string;
@@ -48,7 +49,7 @@ export default function UsersMap() {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch(`${API_URL}/auth/users`);
+      const res = await authFetch(`${API_URL}/auth/users`);
       const data = await res.json();
       if (data.success) {
         setUsers(data.users);

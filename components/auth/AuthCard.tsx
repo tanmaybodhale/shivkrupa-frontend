@@ -1,79 +1,109 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
+import { firebaseAuth } from '@/lib/firebase';
 import { useApp } from '@/context/AppContext';
 
 type Tab = 'login' | 'signup';
 
+// Same base URL AppContext uses (already ends in /api)
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
 export default function AuthCard() {
-  const { login, signup, showToast } = useApp();
+  const { loginWithToken, signupWithToken, showToast } = useApp();
   const router = useRouter();
 
   const [tab, setTab] = useState<Tab>('login');
+  const [step, setStep] = useState<'details' | 'otp'>('details');
   const [loading, setLoading] = useState(false);
+  const [resendIn, setResendIn] = useState(0);
 
-  // Login fields (phone only now)
-  const [loginPhone, setLoginPhone] = useState('');
-  const [loginPass, setLoginPass] = useState('');
+  const [phone, setPhone] = useState('');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState('');
 
-  // Signup fields
-  const [signupName, setSignupName] = useState('');
-  const [signupPhone, setSignupPhone] = useState('');
-  const [signupEmail, setSignupEmail] = useState('');
-  const [signupPass, setSignupPass] = useState('');
+  const verifierRef = useRef<RecaptchaVerifier | null>(null);
+  const confirmationRef = useRef<ConfirmationResult | null>(null);
 
-  const handleLogin = async () => {
-    const phone = loginPhone.trim();
-    const pass = loginPass.trim();
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const t = setTimeout(() => setResendIn(resendIn - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendIn]);
 
-    if (!phone || !pass) {
-      showToast('❌ Please enter phone number and password');
-      return;
-    }
-    if (!/^\d{10}$/.test(phone)) {
-      showToast('❌ Enter a valid 10-digit phone number');
-      return;
-    }
+  useEffect(() => () => { verifierRef.current?.clear(); }, []);
 
-    setLoading(true);
-    const role = phone === '9975636622' ? 'shopkeeper' : 'customer';
-    const err = await login(phone, pass, role);
-    setLoading(false);
-
-    if (err) {
-      showToast('❌ ' + err);
-      return;
-    }
-    router.push(role === 'shopkeeper' ? '/admin' : '/customer');
+  const switchTab = (t: Tab) => {
+    if (loading) return;
+    setTab(t);
+    setStep('details');
+    setOtp('');
   };
 
-  const handleSignup = async () => {
-    const name = signupName.trim();
-    const phone = signupPhone.trim();
-    const email = signupEmail.trim();
-    const pass = signupPass.trim();
-
-    if (!name || !phone || !pass) {
-      showToast('❌ Please fill all required fields');
-      return;
-    }
-    if (!/^\d{10}$/.test(phone)) {
-      showToast('❌ Enter a valid 10-digit phone number');
-      return;
-    }
+  const sendOtp = async () => {
+    const p = phone.trim();
+    if (!/^\d{10}$/.test(p)) return showToast('❌ Enter a valid 10-digit phone number');
+    if (tab === 'signup' && !name.trim()) return showToast('❌ Please enter your name');
 
     setLoading(true);
-    const err = await signup(name, phone, email, pass);
-    setLoading(false);
+    try {
+      // 1. Don't spend an SMS on the wrong flow
+      const r = await fetch(`${API_URL}/auth/check-phone`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: p }),
+      });
+      const check = await r.json();
+      if (!check.success) { showToast('❌ ' + (check.message || 'Please try again')); return; }
+      if (tab === 'login' && !check.exists) { showToast('❌ Number not registered. Please sign up first.'); return; }
+      if (tab === 'signup' && check.exists) { showToast('❌ Already registered. Please login.'); return; }
 
-    if (err) {
-      showToast('❌ ' + err);
-      return;
+      // 2. Send the OTP
+      if (!verifierRef.current) {
+        verifierRef.current = new RecaptchaVerifier(firebaseAuth, 'recaptcha-container', { size: 'invisible' });
+      }
+      confirmationRef.current = await signInWithPhoneNumber(firebaseAuth, '+91' + p, verifierRef.current);
+      setStep('otp');
+      setResendIn(30);
+      showToast('📩 OTP sent to +91 ' + p);
+    } catch (e: any) {
+      verifierRef.current?.clear();
+      verifierRef.current = null;
+      showToast('❌ ' + (e?.code === 'auth/too-many-requests'
+        ? 'Too many attempts. Try again later.'
+        : 'Could not send OTP. Please try again.'));
+    } finally {
+      setLoading(false);
     }
-    showToast('✅ Account created! Please login.');
-    setLoginPhone(phone);
-    setTab('login');
+  };
+
+  const verifyOtp = async () => {
+    if (otp.length !== 6 || !confirmationRef.current) return showToast('❌ Enter the 6-digit OTP');
+
+    setLoading(true);
+    try {
+      const cred = await confirmationRef.current.confirm(otp);
+      const idToken = await cred.user.getIdToken();
+      await firebaseAuth.signOut(); // Firebase is only used to verify the phone
+
+      const err = tab === 'login'
+        ? await loginWithToken(idToken)
+        : await signupWithToken(idToken, name.trim(), email.trim());
+
+      if (err) { showToast('❌ ' + err); return; }
+      router.push('/customer');
+    } catch (e: any) {
+      showToast('❌ ' + (e?.code === 'auth/invalid-verification-code'
+        ? 'Wrong OTP. Please check and retry.'
+        : e?.code === 'auth/code-expired'
+        ? 'OTP expired. Please resend.'
+        : 'Verification failed. Please try again.'));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -87,7 +117,7 @@ export default function AuthCard() {
           Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-500">Shivkrupa</span>
         </h2>
         <p className="text-sm font-medium text-amber-900/60 mt-1">
-          {tab === 'login' ? 'Login to your account' : 'Join our neighbourhood store'}
+          {tab === 'login' ? 'Login with your mobile number' : 'Join our neighbourhood store'}
         </p>
       </div>
 
@@ -96,8 +126,8 @@ export default function AuthCard() {
         {(['login', 'signup'] as Tab[]).map((t) => (
           <button
             key={t}
-            onClick={() => !loading && setTab(t)}
-            className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all capitalize ${
+            onClick={() => switchTab(t)}
+            className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${
               tab === t
                 ? 'bg-white text-orange-600 shadow-sm border border-orange-100/50'
                 : 'text-amber-900/50 hover:text-orange-500 hover:bg-orange-100/30'
@@ -108,80 +138,41 @@ export default function AuthCard() {
         ))}
       </div>
 
-      {/* LOGIN */}
-      {tab === 'login' && (
-        <div className="fade-up animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <Field
-            label="Phone Number"
-            value={loginPhone}
-            onChange={setLoginPhone}
-            placeholder="10-digit mobile number"
-            type="tel"
-            maxLength={10}
-          />
-          <Field label="Password" value={loginPass} onChange={setLoginPass} placeholder="Enter your password" type="password" />
-
-          <button
-            onClick={handleLogin}
-            disabled={loading}
-            className="w-full py-3.5 mt-4 text-base font-bold text-white rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 shadow-lg shadow-orange-200 transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:hover:translate-y-0 flex justify-center items-center"
-          >
-            {loading ? (
-              <span className="flex items-center gap-2">
-                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Signing in...
-              </span>
-            ) : (
-              'Login →'
+      <div className="fade-up animate-in fade-in slide-in-from-bottom-2 duration-300">
+        {step === 'details' ? (
+          <>
+            {tab === 'signup' && (
+              <Field label="Full Name" value={name} onChange={setName} placeholder="e.g. Rahul Sharma" />
             )}
-          </button>
-
-          <p className="text-center mt-6 text-sm text-amber-900/60 font-medium">
-            New here?{' '}
-            <span
-              className="font-bold text-orange-500 hover:text-orange-600 cursor-pointer transition-colors"
-              onClick={() => !loading && setTab('signup')}
-            >
-              Create an account
-            </span>
-          </p>
-        </div>
-      )}
-
-      {/* SIGNUP */}
-      {tab === 'signup' && (
-        <div className="fade-up animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <Field label="Full Name" value={signupName} onChange={setSignupName} placeholder="e.g. Rahul Sharma" />
-          <Field label="Phone Number" value={signupPhone} onChange={setSignupPhone} placeholder="10-digit mobile number (e.g. 9876543210)" type="tel" maxLength={10} />
-          <Field label="Email (optional)" value={signupEmail} onChange={setSignupEmail} placeholder="your@email.com — used for order updates" type="email" />
-          <Field label="Password" value={signupPass} onChange={setSignupPass} placeholder="Min. 6 characters, include a number" type="password" />
-
-          <button
-            onClick={handleSignup}
-            disabled={loading}
-            className="w-full py-3.5 mt-4 text-base font-bold text-white rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 shadow-lg shadow-orange-200 transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:hover:translate-y-0 flex justify-center items-center"
-          >
-            {loading ? (
-              <span className="flex items-center gap-2">
-                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Creating...
-              </span>
-            ) : (
-              'Create Account →'
+            <Field label="Phone Number" value={phone} onChange={setPhone} placeholder="10-digit mobile number" type="tel" maxLength={10} />
+            {tab === 'signup' && (
+              <Field label="Email (optional)" value={email} onChange={setEmail} placeholder="your@email.com" type="email" />
             )}
-          </button>
-
-          <p className="text-center mt-6 text-sm text-amber-900/60 font-medium">
-            Already have an account?{' '}
-            <span
-              className="font-bold text-orange-500 hover:text-orange-600 cursor-pointer transition-colors"
-              onClick={() => !loading && setTab('login')}
+            <PrimaryButton onClick={sendOtp} loading={loading} idle="Send OTP →" busy="Sending..." />
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-amber-900/70 mb-4">
+              Enter the 6-digit code sent to <b>+91 {phone}</b>{' '}
+              <span className="text-orange-500 font-bold cursor-pointer" onClick={() => !loading && setStep('details')}>
+                Change
+              </span>
+            </p>
+            <Field label="OTP" value={otp} onChange={setOtp} placeholder="6-digit OTP" type="tel" maxLength={6} />
+            <PrimaryButton onClick={verifyOtp} loading={loading} idle="Verify & Continue →" busy="Verifying..." />
+            <button
+              disabled={resendIn > 0 || loading}
+              onClick={() => { setOtp(''); sendOtp(); }}
+              className="w-full mt-4 text-sm font-bold text-orange-500 disabled:text-amber-900/30"
             >
-              Login
-            </span>
-          </p>
-        </div>
-      )}
+              {resendIn > 0 ? `Resend OTP in ${resendIn}s` : 'Resend OTP'}
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Invisible reCAPTCHA mounts here */}
+      <div id="recaptcha-container" />
 
       {/* Admin link */}
       <div className="mt-8 pt-4 border-t border-orange-50 text-center">
@@ -193,6 +184,26 @@ export default function AuthCard() {
         </p>
       </div>
     </div>
+  );
+}
+
+/* ── shared button ── */
+function PrimaryButton({
+  onClick, loading, idle, busy,
+}: { onClick: () => void; loading: boolean; idle: string; busy: string }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={loading}
+      className="w-full py-3.5 mt-4 text-base font-bold text-white rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 shadow-lg shadow-orange-200 transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:hover:translate-y-0 flex justify-center items-center"
+    >
+      {loading ? (
+        <span className="flex items-center gap-2">
+          <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          {busy}
+        </span>
+      ) : idle}
+    </button>
   );
 }
 

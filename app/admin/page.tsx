@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/context/ThemeContext';
+import { authFetch } from '@/lib/api';
 import Navbar from '@/components/Navbar';
 import StatsGrid from '@/components/shopkeeper/StatsGrid';
 import OrdersTable from '@/components/shopkeeper/OrdersTable';
@@ -50,7 +51,7 @@ export default function AdminPage() {
 
   const fetchOrders = async () => {
     try {
-      const res = await fetch(`${API_URL}/orders/all`);
+      const res = await authFetch(`${API_URL}/orders/all`);
       const data = await res.json();
       if (data.success) {
         setOrders(data.orders);

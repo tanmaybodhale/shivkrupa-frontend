@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/context/ThemeContext';
+import { setToken } from '@/lib/api';
 import { ShieldCheck } from 'lucide-react'; // Added a nice security icon for the admin vibe
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
@@ -37,7 +38,9 @@ export default function AdminLoginPage() {
       });
       const data = await res.json();
 
-      if (data.success) {
+      if (data.success && data.token) {
+        // Save the login token so admin API calls (authFetch) are authorised
+        setToken(data.token);
         setCurrentUser(data.user);
         localStorage.setItem('sk_session', JSON.stringify(data.user));
         showToast('✅ Welcome Admin!');

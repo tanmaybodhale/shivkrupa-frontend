@@ -38,6 +38,10 @@ async function parseJsonResponse(res: Response, context: string): Promise<{ succ
   return res.json();
 }
 
+// loginWithToken returns this when the phone is verified but the number is new
+// and the backend needs a name before it can create the account
+export const NEEDS_NAME = 'NEEDS_NAME';
+
 const friendlyError = (error: unknown): string =>
   error instanceof Error && error.message.startsWith('Unexpected response')
     ? error.message
@@ -52,7 +56,7 @@ interface AppState {
   cartOpen: boolean;
   wishlist: string[];
 
-  loginWithToken: (idToken: string) => Promise<string | null>;
+  loginWithToken: (idToken: string, name?: string, email?: string) => Promise<string | null>;
   signupWithToken: (idToken: string, name: string, email: string) => Promise<string | null>;
   login: (id: string, pass: string, role: 'customer' | 'shopkeeper') => Promise<string | null>;
   logout: () => void;
@@ -151,15 +155,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ls.set('sk_wishlist', list);
   };
 
-  // Customer login: `idToken` comes from Firebase after the OTP is confirmed
-  const loginWithToken = async (idToken: string): Promise<string | null> => {
+  // Customer login: `idToken` comes from Firebase after the OTP is confirmed.
+  // New numbers get an account automatically once a name is supplied.
+  const loginWithToken = async (idToken: string, name?: string, email?: string): Promise<string | null> => {
     try {
       const res = await fetch(`${API_URL}/auth/login-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken }),
+        body: JSON.stringify({ idToken, name, email }),
       });
       const data = await parseJsonResponse(res, 'login-otp');
+      if (data.needsName) return NEEDS_NAME;
       if (!data.success) return data.message || 'Login failed. Please try again.';
       startSession(data.user as User, data.token as string);
       return null;

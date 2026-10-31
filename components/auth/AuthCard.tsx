@@ -4,69 +4,55 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
 import { firebaseAuth } from '@/lib/firebase';
-import { useApp } from '@/context/AppContext';
+import { useApp, NEEDS_NAME } from '@/context/AppContext';
 
-type Tab = 'login' | 'signup';
-
-// Same base URL AppContext uses (already ends in /api)
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+// details -> otp -> (name, only for a number we have never seen)
+type Step = 'details' | 'otp' | 'name';
 
 export default function AuthCard() {
-  const { loginWithToken, signupWithToken, showToast } = useApp();
+  const { loginWithToken, showToast } = useApp();
   const router = useRouter();
 
-  const [tab, setTab] = useState<Tab>('login');
-  const [step, setStep] = useState<'details' | 'otp'>('details');
+  const [step, setStep] = useState<Step>('details');
   const [loading, setLoading] = useState(false);
   const [resendIn, setResendIn] = useState(0);
 
   const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
 
   const verifierRef = useRef<RecaptchaVerifier | null>(null);
   const confirmationRef = useRef<ConfirmationResult | null>(null);
+  const idTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (resendIn <= 0) return;
-    const t = setTimeout(() => setResendIn(resendIn - 1), 1000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setResendIn(resendIn - 1), 1000);
+    return () => clearTimeout(timer);
   }, [resendIn]);
 
   useEffect(() => () => { verifierRef.current?.clear(); }, []);
 
-  const switchTab = (t: Tab) => {
-    if (loading) return;
-    setTab(t);
+  const backToStart = (message?: string) => {
+    idTokenRef.current = null;
     setStep('details');
     setOtp('');
+    if (message) showToast('❌ ' + message);
   };
 
   const sendOtp = async () => {
     const p = phone.trim();
     if (!/^\d{10}$/.test(p)) return showToast('❌ Enter a valid 10-digit phone number');
-    if (tab === 'signup' && !name.trim()) return showToast('❌ Please enter your name');
 
     setLoading(true);
     try {
-      // 1. Don't spend an SMS on the wrong flow
-      const r = await fetch(`${API_URL}/auth/check-phone`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: p }),
-      });
-      const check = await r.json();
-      if (!check.success) { showToast('❌ ' + (check.message || 'Please try again')); return; }
-      if (tab === 'login' && !check.exists) { showToast('❌ Number not registered. Please sign up first.'); return; }
-      if (tab === 'signup' && check.exists) { showToast('❌ Already registered. Please login.'); return; }
-
-      // 2. Send the OTP
       if (!verifierRef.current) {
         verifierRef.current = new RecaptchaVerifier(firebaseAuth, 'recaptcha-container', { size: 'invisible' });
       }
       confirmationRef.current = await signInWithPhoneNumber(firebaseAuth, '+91' + p, verifierRef.current);
       setStep('otp');
+      setOtp('');
       setResendIn(30);
       showToast('📩 OTP sent to +91 ' + p);
     } catch (e: any) {
@@ -88,12 +74,17 @@ export default function AuthCard() {
       const cred = await confirmationRef.current.confirm(otp);
       const idToken = await cred.user.getIdToken();
       await firebaseAuth.signOut(); // Firebase is only used to verify the phone
+      idTokenRef.current = idToken;
 
-      const err = tab === 'login'
-        ? await loginWithToken(idToken)
-        : await signupWithToken(idToken, name.trim(), email.trim());
-
-      if (err) { showToast('❌ ' + err); return; }
+      const err = await loginWithToken(idToken);
+      if (err === NEEDS_NAME) {
+        setStep('name');
+        return;
+      }
+      if (err) {
+        backToStart(err);
+        return;
+      }
       router.push('/customer');
     } catch (e: any) {
       showToast('❌ ' + (e?.code === 'auth/invalid-verification-code'
@@ -101,6 +92,23 @@ export default function AuthCard() {
         : e?.code === 'auth/code-expired'
         ? 'OTP expired. Please resend.'
         : 'Verification failed. Please try again.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitName = async () => {
+    if (!name.trim()) return showToast('❌ Please enter your name');
+    if (!idTokenRef.current) return backToStart('Please verify your number again.');
+
+    setLoading(true);
+    try {
+      const err = await loginWithToken(idTokenRef.current, name.trim(), email.trim());
+      if (err) {
+        backToStart(err === NEEDS_NAME ? 'Please verify your number again.' : err);
+        return;
+      }
+      router.push('/customer');
     } finally {
       setLoading(false);
     }
@@ -117,56 +125,46 @@ export default function AuthCard() {
           Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-500">Shivkrupa</span>
         </h2>
         <p className="text-sm font-medium text-amber-900/60 mt-1">
-          {tab === 'login' ? 'Login with your mobile number' : 'Join our neighbourhood store'}
+          {step === 'details' ? 'Login with your mobile number' : step === 'otp' ? 'Verify your number' : 'One last step'}
         </p>
       </div>
 
-      {/* Tab bar */}
-      <div className="flex rounded-xl p-1.5 mb-8 bg-orange-50 border border-orange-100">
-        {(['login', 'signup'] as Tab[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => switchTab(t)}
-            className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${
-              tab === t
-                ? 'bg-white text-orange-600 shadow-sm border border-orange-100/50'
-                : 'text-amber-900/50 hover:text-orange-500 hover:bg-orange-100/30'
-            }`}
-          >
-            {t === 'login' ? 'Login' : 'Sign Up'}
-          </button>
-        ))}
-      </div>
-
       <div className="fade-up animate-in fade-in slide-in-from-bottom-2 duration-300">
-        {step === 'details' ? (
+        {step === 'details' && (
           <>
-            {tab === 'signup' && (
-              <Field label="Full Name" value={name} onChange={setName} placeholder="e.g. Rahul Sharma" />
-            )}
-            <Field label="Phone Number" value={phone} onChange={setPhone} placeholder="10-digit mobile number" type="tel" maxLength={10} />
-            {tab === 'signup' && (
-              <Field label="Email (optional)" value={email} onChange={setEmail} placeholder="your@email.com" type="email" />
-            )}
+            <Field label="Phone Number" value={phone} onChange={setPhone} placeholder="10-digit mobile number" type="tel" maxLength={10} onEnter={sendOtp} />
             <PrimaryButton onClick={sendOtp} loading={loading} idle="Send OTP →" busy="Sending..." />
           </>
-        ) : (
+        )}
+
+        {step === 'otp' && (
           <>
             <p className="text-sm text-amber-900/70 mb-4">
               Enter the 6-digit code sent to <b>+91 {phone}</b>{' '}
-              <span className="text-orange-500 font-bold cursor-pointer" onClick={() => !loading && setStep('details')}>
+              <span className="text-orange-500 font-bold cursor-pointer" onClick={() => !loading && backToStart()}>
                 Change
               </span>
             </p>
-            <Field label="OTP" value={otp} onChange={setOtp} placeholder="6-digit OTP" type="tel" maxLength={6} />
+            <Field label="OTP" value={otp} onChange={setOtp} placeholder="6-digit OTP" type="tel" maxLength={6} onEnter={verifyOtp} />
             <PrimaryButton onClick={verifyOtp} loading={loading} idle="Verify & Continue →" busy="Verifying..." />
             <button
               disabled={resendIn > 0 || loading}
-              onClick={() => { setOtp(''); sendOtp(); }}
+              onClick={sendOtp}
               className="w-full mt-4 text-sm font-bold text-orange-500 disabled:text-amber-900/30"
             >
               {resendIn > 0 ? `Resend OTP in ${resendIn}s` : 'Resend OTP'}
             </button>
+          </>
+        )}
+
+        {step === 'name' && (
+          <>
+            <p className="text-sm text-amber-900/70 mb-4">
+              Your number <b>+91 {phone}</b> is verified. Tell us your name to finish setting up your account.
+            </p>
+            <Field label="Full Name" value={name} onChange={setName} placeholder="e.g. Rahul Sharma" onEnter={submitName} />
+            <Field label="Email (optional)" value={email} onChange={setEmail} placeholder="your@email.com" type="email" onEnter={submitName} />
+            <PrimaryButton onClick={submitName} loading={loading} idle="Continue →" busy="Please wait..." />
           </>
         )}
       </div>
@@ -209,10 +207,10 @@ function PrimaryButton({
 
 /* ── small reusable input ── */
 function Field({
-  label, value, onChange, placeholder, type = 'text', maxLength,
+  label, value, onChange, placeholder, type = 'text', maxLength, onEnter,
 }: {
   label: string; value: string; onChange: (v: string) => void;
-  placeholder: string; type?: string; maxLength?: number;
+  placeholder: string; type?: string; maxLength?: number; onEnter?: () => void;
 }) {
   return (
     <div className="mb-4 text-left">
@@ -229,10 +227,7 @@ function Field({
         placeholder={placeholder}
         className="w-full px-4 py-3 rounded-xl border border-orange-200 bg-orange-50/30 text-amber-950 placeholder-amber-900/30 font-medium focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 focus:bg-white transition-all"
         onKeyDown={e => {
-          if (e.key === 'Enter') {
-            const button = e.currentTarget.closest('.fade-up')?.querySelector('button') as HTMLButtonElement;
-            if (button) button.click();
-          }
+          if (e.key === 'Enter' && onEnter) onEnter();
         }}
       />
     </div>

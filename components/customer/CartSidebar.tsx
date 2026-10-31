@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -23,11 +23,14 @@ const CATEGORY_LABELS: Record<string, string> = {
   household: 'Household',
 };
 
+// A half-filled address is kept here while the customer verifies their number
+const ADDRESS_DRAFT_KEY = 'sk_checkout_address';
+
 export default function CartSidebar() {
   const {
     cart, cartOpen, setCartOpen, changeQty,
     cartSubtotal, deliveryCharge, cartTotal,
-    placeOrder, clearCart, showToast, currentUser,
+    placeOrder, clearCart, showToast, currentUser, updateAddress,
   } = useApp();
   const { isDark } = useTheme();
   const { t } = useLang();
@@ -45,6 +48,38 @@ export default function CartSidebar() {
   };
   const [deliveryAddress, setDeliveryAddress] = useState(defaultAddress);
 
+  // Coming back from the OTP login page: restore the address they had typed
+  useEffect(() => {
+    try {
+      const draft = sessionStorage.getItem(ADDRESS_DRAFT_KEY);
+      if (draft) {
+        setDeliveryAddress({ ...defaultAddress, ...JSON.parse(draft) });
+        setShowAddressForm(true);
+      }
+    } catch {
+      // ignore a corrupt draft
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Logged-in customers: pre-fill from the address saved on their account
+  useEffect(() => {
+    const saved = currentUser?.address;
+    if (!saved || !saved.street) return;
+    setDeliveryAddress(prev =>
+      prev.street
+        ? prev
+        : {
+            street: saved.street || '',
+            area: saved.area || '',
+            city: saved.city || '',
+            state: saved.state || '',
+            pincode: saved.pincode || '',
+          }
+    );
+    setShowAddressForm(true);
+  }, [currentUser]);
+
   const getProductId = (product: Product): string => {
     return product._id || String(product.id || '');
   };
@@ -59,6 +94,17 @@ export default function CartSidebar() {
   const handleCheckout = async () => {
     if (cart.length === 0) { showToast('❌ Cart is empty!'); return; }
 
+    // Anyone can browse and fill the cart. Placing an order needs a mobile
+    // number verified with an OTP, so send guests to the login page first.
+    if (!currentUser) {
+      sessionStorage.setItem('pending_checkout', 'true');
+      sessionStorage.setItem(ADDRESS_DRAFT_KEY, JSON.stringify(deliveryAddress));
+      showToast('📱 Please verify your mobile number to place your order');
+      setCartOpen(false);
+      router.push('/login');
+      return;
+    }
+
     const hasAddress = deliveryAddress.street.trim() &&
       deliveryAddress.city.trim() && deliveryAddress.state.trim() && deliveryAddress.pincode.trim();
     if (!hasAddress) {
@@ -67,16 +113,13 @@ export default function CartSidebar() {
       return;
     }
 
-    if (!currentUser) {
-      sessionStorage.setItem('pending_checkout', 'true');
-      showToast('❌ Please login to place order');
-      setCartOpen(false);
-      router.push('/login');
-      return;
-    }
-
     const order = await placeOrder(paymentMethod, deliveryAddress);
     if (order) {
+      sessionStorage.removeItem(ADDRESS_DRAFT_KEY);
+      // Remember the address on the account, for next time and for the admin's customer list
+      if (currentUser.role === 'customer' && !currentUser.address?.street) {
+        void updateAddress(deliveryAddress);
+      }
       setBillOrder(order);
       clearCart();
       setCartOpen(false);

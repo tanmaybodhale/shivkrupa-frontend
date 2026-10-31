@@ -13,14 +13,22 @@ export default function UsersManager({ showToast }: { showToast: (msg: string) =
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingUid, setDeletingUid] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const fetchUsers = async () => {
+    setLoadError(null);
     try {
       const res = await authFetch(`${API_URL}/auth/users`);
       const data = await res.json();
-      if (data.success) setUsers(data.users || []);
+      if (data.success) {
+        setUsers(data.users || []);
+      } else {
+        // Show the real reason instead of a misleading empty list
+        setLoadError(`${data.message || 'Could not load customers'} (status ${res.status})`);
+      }
     } catch (error) {
       console.error('Failed to fetch users:', error);
+      setLoadError('Could not reach the server. Please try again.');
       showToast('❌ Failed to fetch users');
     } finally {
       setLoading(false);
@@ -78,6 +86,13 @@ export default function UsersManager({ showToast }: { showToast: (msg: string) =
           🔄 Refresh
         </button>
       </div>
+
+      {loadError && (
+        <div className={`mx-6 mt-4 p-4 rounded-xl border text-sm font-bold flex items-center justify-between gap-3 ${isDark ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-red-50 border-red-200 text-red-600'}`}>
+          <span>❌ {loadError}</span>
+          <button onClick={fetchUsers} className="underline shrink-0">Try again</button>
+        </div>
+      )}
 
       {/* Desktop View */}
       <div className="hidden lg:block overflow-x-auto">
@@ -233,7 +248,7 @@ export default function UsersManager({ showToast }: { showToast: (msg: string) =
         })}
       </div>
 
-      {users.length === 0 && (
+      {users.length === 0 && !loadError && (
         <div className="p-10 text-center text-gray-500 font-medium">
           No customers found.
         </div>

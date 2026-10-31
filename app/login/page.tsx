@@ -4,46 +4,33 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
 import { firebaseAuth } from '@/lib/firebase';
-import { authFetch } from '@/lib/api';
-import { useApp } from '@/context/AppContext';
+import { useApp, NEEDS_NAME } from '@/context/AppContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useLang } from '@/context/LanguageContext';
-import { User } from '@/lib/types';
 import Toast from '@/components/shared/Toast';
 
-type Tab = 'login' | 'signup';
-type Step = 'details' | 'otp';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+// details -> otp -> (name, only for a number we have never seen)
+type Step = 'details' | 'otp' | 'name';
 
 export default function LoginPage() {
-  const { loginWithToken, signupWithToken, setCurrentUser, showToast } = useApp();
+  const { loginWithToken, showToast } = useApp();
   const { isDark } = useTheme();
   const { t } = useLang();
   const router = useRouter();
 
-  const [tab, setTab] = useState<Tab>('login');
   const [step, setStep] = useState<Step>('details');
   const [loading, setLoading] = useState(false);
   const [resendIn, setResendIn] = useState(0);
 
   const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
-  const [errors, setErrors] = useState<{ name?: string; phone?: string; otp?: string }>({});
-
-  const [showAddressForm, setShowAddressForm] = useState(false);
-  const [address, setAddress] = useState({
-    street: '',
-    area: '',
-    city: '',
-    state: '',
-    pincode: '',
-  });
+  const [errors, setErrors] = useState<{ phone?: string; otp?: string; name?: string }>({});
 
   const verifierRef = useRef<RecaptchaVerifier | null>(null);
   const confirmationRef = useRef<ConfirmationResult | null>(null);
+  const idTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (resendIn <= 0) return;
@@ -53,15 +40,7 @@ export default function LoginPage() {
 
   useEffect(() => () => { verifierRef.current?.clear(); }, []);
 
-  const switchTab = (next: Tab) => {
-    if (loading) return;
-    setTab(next);
-    setStep('details');
-    setOtp('');
-    setErrors({});
-  };
-
-  // After a successful login/signup, go where the customer was heading
+  // After a successful login, go where the customer was heading
   const goNext = () => {
     const pendingCheckout = sessionStorage.getItem('pending_checkout');
     if (pendingCheckout) {
@@ -72,63 +51,27 @@ export default function LoginPage() {
     }
   };
 
-  // Signup form lets the customer add an address; save it right after the account exists
-  const saveSignupAddress = async () => {
-    const hasAddress =
-      showAddressForm &&
-      (address.street || address.area || address.city || address.state || address.pincode);
-    if (!hasAddress) return;
-    try {
-      const res = await authFetch(`${API_URL}/auth/profile`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), address }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setCurrentUser(data.user as User);
-        localStorage.setItem('sk_session', JSON.stringify(data.user));
-      }
-    } catch {
-      // Account is already created; the address can be added later from the profile
-    }
+  const backToStart = (message?: string) => {
+    idTokenRef.current = null;
+    setStep('details');
+    setOtp('');
+    if (message) showToast('❌ ' + message);
   };
 
   const sendOtp = async () => {
     const p = phone.trim();
-    const errs: { name?: string; phone?: string } = {};
-    if (tab === 'signup' && !name.trim()) errs.name = t('nameRequired');
-    if (!p) errs.phone = t('mobileRequired');
-    else if (!/^\d{10}$/.test(p)) errs.phone = t('invalidMobile');
-    if (Object.keys(errs).length > 0) {
-      setErrors(errs);
+    if (!p) {
+      setErrors({ phone: t('mobileRequired') });
+      return;
+    }
+    if (!/^\d{10}$/.test(p)) {
+      setErrors({ phone: t('invalidMobile') });
       return;
     }
     setErrors({});
 
     setLoading(true);
     try {
-      // 1. Don't spend an SMS on the wrong flow
-      const r = await fetch(`${API_URL}/auth/check-phone`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: p }),
-      });
-      const check = await r.json();
-      if (!check.success) {
-        showToast('❌ ' + (check.message || 'Please try again'));
-        return;
-      }
-      if (tab === 'login' && !check.exists) {
-        setErrors({ phone: 'This number is not registered. Please sign up first.' });
-        return;
-      }
-      if (tab === 'signup' && check.exists) {
-        setErrors({ phone: 'This number is already registered. Please login.' });
-        return;
-      }
-
-      // 2. Send the OTP
       if (!verifierRef.current) {
         verifierRef.current = new RecaptchaVerifier(firebaseAuth, 'recaptcha-container', { size: 'invisible' });
       }
@@ -160,18 +103,18 @@ export default function LoginPage() {
       const cred = await confirmationRef.current.confirm(otp);
       const idToken = await cred.user.getIdToken();
       await firebaseAuth.signOut(); // Firebase is only used to verify the phone number
+      idTokenRef.current = idToken;
 
-      const err = tab === 'login'
-        ? await loginWithToken(idToken)
-        : await signupWithToken(idToken, name.trim(), email.trim());
+      const err = await loginWithToken(idToken);
 
-      if (err) {
-        showToast('❌ ' + err);
-        setStep('details');
+      if (err === NEEDS_NAME) {
+        setStep('name'); // first time with this number: ask for a name once
         return;
       }
-
-      if (tab === 'signup') await saveSignupAddress();
+      if (err) {
+        backToStart(err);
+        return;
+      }
       goNext();
     } catch (e: any) {
       const message =
@@ -187,11 +130,43 @@ export default function LoginPage() {
     }
   };
 
+  // Only reached for a brand new number; the phone was verified moments ago
+  const submitName = async () => {
+    if (!name.trim()) {
+      setErrors({ name: t('nameRequired') });
+      return;
+    }
+    if (!idTokenRef.current) {
+      backToStart('Please verify your number again.');
+      return;
+    }
+    setErrors({});
+
+    setLoading(true);
+    try {
+      const err = await loginWithToken(idTokenRef.current, name.trim(), email.trim());
+      if (err) {
+        backToStart(err === NEEDS_NAME ? 'Please verify your number again.' : err);
+        return;
+      }
+      goNext();
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const primaryButtonClass = `w-full py-3.5 mt-4 text-base font-bold text-white rounded-xl shadow-lg transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:hover:translate-y-0 flex justify-center items-center ${isDark ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-indigo-900/50' : 'bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 shadow-orange-200'}`;
 
   const linkClass = `font-bold cursor-pointer transition-colors ${isDark ? 'text-indigo-400 hover:text-indigo-300' : 'text-orange-500 hover:text-orange-600'}`;
 
   const spinner = <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />;
+
+  const subtitle =
+    step === 'details'
+      ? 'Login with your mobile number'
+      : step === 'otp'
+      ? 'Verify your number'
+      : 'Welcome! One last step';
 
   return (
     <main className={`min-h-screen flex flex-col items-center justify-center px-4 py-10 relative overflow-hidden transition-colors duration-300 ${isDark ? 'bg-[#0f0d1a]' : 'bg-gradient-to-br from-orange-50 via-white to-yellow-50'}`}>
@@ -227,71 +202,28 @@ export default function LoginPage() {
       <div className={`w-full max-w-lg backdrop-blur-xl border shadow-2xl rounded-[2rem] p-8 sm:p-10 relative z-10 overflow-hidden max-h-[90vh] overflow-y-auto ${isDark ? 'bg-[#1a1535]/90 border-[#2d2450] shadow-black/20' : 'bg-white/90 border-orange-100 shadow-orange-900/10'}`}>
         <div className={`absolute top-0 left-0 w-full h-1.5 ${isDark ? 'bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-600' : 'bg-gradient-to-r from-yellow-400 via-orange-500 to-amber-600'}`} />
 
-        <div className={`flex rounded-xl p-1.5 mb-6 border ${isDark ? 'bg-[#13102a] border-[#2d2450]' : 'bg-orange-50 border-orange-100'}`}>
-          {(['login', 'signup'] as Tab[]).map((tabKey) => (
-            <button
-              key={tabKey}
-              onClick={() => switchTab(tabKey)}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all capitalize ${tab === tabKey
-                ? (isDark ? 'bg-[#1a1535] text-indigo-400 shadow-sm border border-[#2d2450]' : 'bg-white text-orange-600 shadow-sm border border-orange-100/50')
-                : (isDark ? 'text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10' : 'text-amber-900/50 hover:text-orange-500 hover:bg-orange-100/30')
-                }`}
-            >
-              {tabKey === 'login' ? 'Login' : 'Sign Up'}
-            </button>
-          ))}
+        <div className="text-center mb-6">
+          <h2 className={`text-xl font-black ${isDark ? 'text-gray-100' : 'text-amber-950'}`}>{subtitle}</h2>
+          {step === 'details' && (
+            <p className={`text-sm font-medium mt-1 ${isDark ? 'text-gray-500' : 'text-amber-900/60'}`}>
+              We will send a 6-digit OTP to your phone
+            </p>
+          )}
         </div>
 
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-          {step === 'details' ? (
+          {step === 'details' && (
             <>
-              {tab === 'signup' && (
-                <Field
-                  label="Full Name"
-                  value={name}
-                  onChange={(v) => { setName(v); setErrors((e) => ({ ...e, name: undefined })); }}
-                  placeholder="Your full name"
-                  error={errors.name}
-                  onEnter={sendOtp}
-                />
-              )}
               <Field
                 label="Phone Number"
                 value={phone}
-                onChange={(v) => { setPhone(v); setErrors((e) => ({ ...e, phone: undefined })); }}
+                onChange={(v) => { setPhone(v); setErrors({}); }}
                 placeholder="10-digit mobile number"
                 type="tel"
                 maxLength={10}
                 error={errors.phone}
                 onEnter={sendOtp}
               />
-
-              {tab === 'signup' && (
-                <>
-                  <Field label="Email (optional)" value={email} onChange={setEmail} placeholder="your@email.com" type="email" onEnter={sendOtp} />
-
-                  <button
-                    type="button"
-                    onClick={() => setShowAddressForm(!showAddressForm)}
-                    className="text-sm font-bold text-orange-600 hover:text-orange-700 transition-colors mb-4"
-                  >
-                    {showAddressForm ? '− Hide Address Details' : '+ Add Address Details (Optional)'}
-                  </button>
-
-                  {showAddressForm && (
-                    <div className={`space-y-3 mb-4 p-4 rounded-xl border ${isDark ? 'bg-[#13102a] border-[#2d2450]' : 'bg-orange-50 border-orange-100'}`}>
-                      <Field label="Street Address" value={address.street} onChange={(v) => setAddress({ ...address, street: v })} placeholder="House No., Street Name" />
-                      <Field label="Area/Locality" value={address.area} onChange={(v) => setAddress({ ...address, area: v })} placeholder="Area, Landmark" />
-                      <div className="grid grid-cols-2 gap-3">
-                        <Field label="City" value={address.city} onChange={(v) => setAddress({ ...address, city: v })} placeholder="City" />
-                        <Field label="State" value={address.state} onChange={(v) => setAddress({ ...address, state: v })} placeholder="State" />
-                      </div>
-                      <Field label="Pincode" value={address.pincode} onChange={(v) => setAddress({ ...address, pincode: v })} placeholder="6-digit pincode" />
-                    </div>
-                  )}
-                </>
-              )}
-
               <button onClick={sendOtp} disabled={loading} className={primaryButtonClass}>
                 {loading ? (
                   <span className="flex items-center gap-2">{spinner}Sending...</span>
@@ -299,33 +231,27 @@ export default function LoginPage() {
                   'Send OTP →'
                 )}
               </button>
-
-              <p className={`text-center mt-6 text-sm font-medium ${isDark ? 'text-gray-500' : 'text-amber-900/60'}`}>
-                {tab === 'login' ? 'New here? ' : 'Already have an account? '}
-                <span className={linkClass} onClick={() => switchTab(tab === 'login' ? 'signup' : 'login')}>
-                  {tab === 'login' ? 'Create an account' : 'Login'}
-                </span>
-              </p>
             </>
-          ) : (
+          )}
+
+          {step === 'otp' && (
             <>
               <p className={`text-sm font-medium mb-4 ${isDark ? 'text-gray-400' : 'text-amber-900/70'}`}>
                 Enter the 6-digit code sent to <b>+91 {phone}</b>{' '}
-                <span className={linkClass} onClick={() => !loading && setStep('details')}>
+                <span className={linkClass} onClick={() => !loading && backToStart()}>
                   Change
                 </span>
               </p>
               <Field
                 label="OTP"
                 value={otp}
-                onChange={(v) => { setOtp(v); setErrors((e) => ({ ...e, otp: undefined })); }}
+                onChange={(v) => { setOtp(v); setErrors({}); }}
                 placeholder="6-digit OTP"
                 type="tel"
                 maxLength={6}
                 error={errors.otp}
                 onEnter={verifyOtp}
               />
-
               <button onClick={verifyOtp} disabled={loading} className={primaryButtonClass}>
                 {loading ? (
                   <span className="flex items-center gap-2">{spinner}Verifying...</span>
@@ -333,13 +259,43 @@ export default function LoginPage() {
                   'Verify & Continue →'
                 )}
               </button>
-
               <button
                 disabled={resendIn > 0 || loading}
                 onClick={sendOtp}
                 className={`w-full mt-4 text-sm font-bold disabled:opacity-40 ${isDark ? 'text-indigo-400' : 'text-orange-500'}`}
               >
                 {resendIn > 0 ? `Resend OTP in ${resendIn}s` : 'Resend OTP'}
+              </button>
+            </>
+          )}
+
+          {step === 'name' && (
+            <>
+              <p className={`text-sm font-medium mb-4 ${isDark ? 'text-gray-400' : 'text-amber-900/70'}`}>
+                Your number <b>+91 {phone}</b> is verified. Tell us your name to finish setting up your account.
+              </p>
+              <Field
+                label="Full Name"
+                value={name}
+                onChange={(v) => { setName(v); setErrors({}); }}
+                placeholder="Your full name"
+                error={errors.name}
+                onEnter={submitName}
+              />
+              <Field
+                label="Email (optional)"
+                value={email}
+                onChange={setEmail}
+                placeholder="your@email.com"
+                type="email"
+                onEnter={submitName}
+              />
+              <button onClick={submitName} disabled={loading} className={primaryButtonClass}>
+                {loading ? (
+                  <span className="flex items-center gap-2">{spinner}Please wait...</span>
+                ) : (
+                  'Continue →'
+                )}
               </button>
             </>
           )}
